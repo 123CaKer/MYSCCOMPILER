@@ -3,8 +3,8 @@
 #include "decl.h"
 #include <stdio.h>
 
-// 操作符优先级  EOF  +   -   *   /  INTLIT
-static int OpPrec[] = { 0, 10, 10, 20, 20, 0 };
+// 操作符优先级  EOF  +   -   *   /  INTLIT SEMI
+static int OpPrec[] = { 0, 10, 10, 20, 20, 0 ,0,0};
 
 
 //解析 token 并判断其对应的ASTNode 应赋值类型为 A_INTLIT
@@ -19,6 +19,7 @@ static struct ASTnode* primary( )
         n = mkastleaf(A_INTLIT, Token.intvalue);
         scan(&Token);  // 判断类型
         return n;
+
     default:
         fprintf(stderr, "syntax error on line %d, token %d\n", Line, Token.token);
         exit(1);
@@ -75,7 +76,8 @@ struct ASTnode* binexpr(int p)
                       /
                     T_EOF
     */
-    if (Token.token == T_EOF)  // 
+
+    if (Token.token == T_EOF||Token.token==T_SEMI)   
         return left;
 
     while (op_precedence(Token.token)>p)
@@ -93,8 +95,8 @@ struct ASTnode* binexpr(int p)
         // 生成ast节点
         left = mkastnode(tokentype, left, right, 0);
 
-        tokentype = Token.token;  // 更新token
-        if (tokentype == T_EOF)
+        tokentype = Token.token;  // 更新 token
+        if (tokentype == T_EOF || tokentype == T_SEMI)
             return left;
     }
    

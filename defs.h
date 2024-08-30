@@ -1,4 +1,5 @@
 #pragma once
+
 // 令牌
 enum 
 {
@@ -7,7 +8,9 @@ enum
 	T_MINUS,   // -
 	T_STAR,    // *
 	T_SLASH,    // /
-	T_INTLIT   // 整型
+	T_INTLIT,   // 整型
+	T_SEMI,    // ；
+	T_PRINT   // print
 };
 
 // AST 节点类型

@@ -139,11 +139,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cg.c" />
     <ClCompile Include="expr.c" />
     <ClCompile Include="expr2.c" />
+    <ClCompile Include="gen.c" />
     <ClCompile Include="interp.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="misc.c" />
     <ClCompile Include="scan.c" />
+    <ClCompile Include="stmt.c" />
     <ClCompile Include="tree.c" />
   </ItemGroup>
   <ItemGroup>

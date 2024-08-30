@@ -6,11 +6,11 @@
 static char* ASTop[] = { "+", "-", "*", "/" };
 
 
-// 解释AST值
+// 解释AST值   可改为汇编接口代码在gen.c
 int interpretAST(struct ASTnode* n)
 {
-    int leftval = 0;
-    int rightval= 0;
+    int leftval;
+    int rightval;
 
     //获取左子树 递归
     if (n->left)

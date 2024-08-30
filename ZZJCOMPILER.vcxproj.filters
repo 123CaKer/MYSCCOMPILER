@@ -33,6 +33,18 @@
     <ClCompile Include="expr2.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="cg.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="gen.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="stmt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="misc.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.h">

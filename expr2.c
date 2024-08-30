@@ -1,7 +1,7 @@
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
-
+/// 普拉特
 
 //解析 token 并判断其对应的ASTNode 应赋值类型为 A_INTLIT
 static struct ASTnode* primary()

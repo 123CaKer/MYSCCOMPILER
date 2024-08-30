@@ -31,9 +31,9 @@ static void scanfile()
     }
 }
 
-void doer(char *p) 
+void doer(char *p,char * q) // p为输入文件，q为输出文件 
 {
-    struct token* n;
+   // struct token* n;
     init();
 
     if ((Infile = fopen(p, "r")) == NULL) // 未打开文件
@@ -43,12 +43,23 @@ void doer(char *p)
 
     }
 
-    scan(&Token);			// 判断类型
+    
+    if ((Outfile = fopen(q, "w")) == NULL)  // 输出文件
+    {
+        fprintf(stderr, "Unable to create file of ****.s: %s\n", strerror(errno));
+        exit(1);
+    }
 
-   // scanfile();
-    n = binexpr(0);		   // 生成ast ，初始化优先级为0
-    printf("%d\n", interpretAST(n));	// 解释语法树
-    fclose(Infile); // 闭包性
+
+    // 目前使用生成的.s文件进行输出 并在汇编器中执行 最终输出值 具体参考 charter 5
+    scan(&Token);			// 判断类型
+    genpreamble();		// 输出 preamble
+    statements();			 
+    genpostamble();		// 输出 postamble
+
+    fclose(Outfile);
+    fclose(Infile); 
+   
     exit(0);
 }
 
@@ -56,5 +67,6 @@ int _ZZJSTART()
 {
     char* p = NULL;
     p = "..//needcompilefile/hello.c"; // 此处用于之后的编译器可视化
-    doer(p);
+    char* myoutpath= "..//needcompilefile/hello.s";// 生成.s
+    doer(p,myoutpath);
 }
