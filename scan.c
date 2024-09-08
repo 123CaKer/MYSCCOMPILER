@@ -94,6 +94,71 @@ int scan(struct token* t)
     case ';':
         t->token = T_SEMI;
         break;
+    case'=':
+        if ((c = next()) == '=') // 不用担心当前为真 因为最终回在 putback中先获取
+        {
+            t->token = T_EQ;
+            break;
+        }
+        else
+        {
+            putback(c);
+            t->token = T_ASSIGN;
+            break;
+        }
+    case '!':  // 不等于
+        if ((c = next()) == '=')
+        {
+            t->token = T_NE;
+            break;
+        }
+        else
+        {
+
+             // logic  ???
+
+
+            putback(c);
+            fatalc("Unrecognised character", c);
+        }
+    case '>':
+        if ((c = next()) == '=')
+        {
+            t->token = T_GE;
+            break;
+        }
+        else
+        {
+            t->token = T_GT;
+            break;
+        }
+    case '<':
+        if ((c = next()) == '=')
+        {
+            t->token = T_LE;
+            break;
+        }
+        else
+        {
+            t->token = T_LT;
+            break;
+        }
+        break;
+
+    case '{':
+        t->token = T_LBRACE;
+        break;
+    case '}':
+        t->token = T_RBRACE;
+        break;
+    case '(':
+        t->token = T_LPAREN;
+        break;
+    case ')':
+        t->token = T_RPAREN;
+        break;
+
+
     default:
         if (isdigit(c))
         {
@@ -104,26 +169,30 @@ int scan(struct token* t)
         else if (isalpha(c)||c=='_')
         {
             scanident(c, Text, TEXTLEN + 1);// 输入到缓冲区中
-            if (keyword(Text)== T_PRINT)
+            int judge= keyword(Text);
+            switch (judge)
             {
+            case T_PRINT:
                 t->token = T_PRINT;
                 break;
-            }
-            else
-            {
-                printf("Unrecognised symbol <%s> on line <%d>\n", Text, Line);
-                exit(1);
-            }
-          
+            case T_INT:
+                t->token = T_INT;
+                break;
+            case T_IF:
+                t->token = T_IF;
+                break;
+            case T_ELSE:
+                t->token = T_ELSE;
+                break;
+            default:
+                t->token = T_IDENT;
+                break;
+            }  
         }
-
-        
+        else
+            fatalc("Unrecognised character", c);
        
-        printf("Unexpected token <%c> on line <%d> \n", c, Line);
-        exit(1);
-    }
-
-    
+    }  
     return 1; //找到token
 }
 
@@ -158,7 +227,14 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'p':
         if (!strcmp(s, "print"))
             return  T_PRINT;
-        break;
+    case 'i':
+        if (!strcmp(s, "int"))
+            return  T_INT;
+        if (!strcmp(s, "if"))
+            return  T_IF;
+    case 'e':
+        if (!strcmp(s, "else"))
+            return T_ELSE;
     }
     return 0;
 }

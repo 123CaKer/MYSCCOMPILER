@@ -3,29 +3,14 @@
 #include "decl.h"
 #include <stdio.h>
 
-// 操作符优先级  EOF  +   -   *   /  INTLIT SEMI
-static int OpPrec[] = { 0, 10, 10, 20, 20, 0 ,0,0};
-
-
-//解析 token 并判断其对应的ASTNode 应赋值类型为 A_INTLIT
-static struct ASTnode* primary( )
- {
-    struct ASTnode* n;
-
-    // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
-    switch (Token.token) 
-    {
-    case T_INTLIT:
-        n = mkastleaf(A_INTLIT, Token.intvalue);
-        scan(&Token);  // 判断类型
-        return n;
-
-    default:
-        fprintf(stderr, "syntax error on line %d, token %d\n", Line, Token.token);
-        exit(1);
-    }
-}
-
+// 操作符优先级  
+static int OpPrec[] =
+{
+  0, 10, 10,                    // T_EOF, T_PLUS, T_MINUS
+  20, 20,                       // T_STAR, T_SLASH
+  30, 30,                       // T_EQ, T_NE
+  40, 40, 40, 40                // T_LT, T_GT, T_LE, T_GE
+};
 
 //将 表达式符号转换为AST对应符号
 int arithop(int tokentype)
@@ -39,10 +24,21 @@ int arithop(int tokentype)
     case T_STAR:
         return A_MULTIPLY;
     case T_SLASH:
-        return A_DIVIDE;  
+        return A_DIVIDE; 
+    case T_EQ:
+        return A_EQ;
+    case T_NE:
+        return A_NE;
+    case T_GE:
+        return A_GE;
+    case T_GT:
+        return A_GT;
+    case T_LE:
+        return A_LE;
+    case T_LT:
+        return A_LT;
     default:
-        fprintf(stderr, "syntax error on line %d, token %d\n", Line, tokentype);  
-        exit(1);
+        fatald("Syntax error, token", tokentype);
     }
 }
 
@@ -77,7 +73,14 @@ struct ASTnode* binexpr(int p)
                     T_EOF
     */
 
-    if (Token.token == T_EOF||Token.token==T_SEMI)   
+    if (Token.token == T_EOF||Token.token==T_SEMI|| Token.token == T_RPAREN)// 匹配)
+        /*  AST树
+        * 
+        *          A_IF
+        *     /          \
+        * (condition)
+        *   
+        */
         return left;
 
     while (op_precedence(Token.token)>p)
@@ -93,10 +96,11 @@ struct ASTnode* binexpr(int p)
         right = binexpr(OpPrec[tokentype]);
 
         // 生成ast节点
-        left = mkastnode(tokentype, left, right, 0);
+        left = mkastnode(arithop(tokentype), left, NULL, right, 0);  
+        // 目前排查错误为tokentype二次转换，但依照ch8 更改 enum 顺序值
 
         tokentype = Token.token;  // 更新 token
-        if (tokentype == T_EOF || tokentype == T_SEMI)
+        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN)// 匹配)
             return left;
     }
    

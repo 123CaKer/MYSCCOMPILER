@@ -1,25 +1,8 @@
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
-/// 普拉特
+/// 普拉特解析 保证 乘优先
 
-//解析 token 并判断其对应的ASTNode 应赋值类型为 A_INTLIT
-static struct ASTnode* primary()
-{
-    struct ASTnode* n;
-
-    // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
-    switch (Token.token)
-    {
-    case T_INTLIT:
-        n = mkastleaf(A_INTLIT, Token.intvalue);
-        scan(&Token);  // 判断类型
-        return n;
-    default:
-        fprintf(stderr, "syntax error on line %d, token %d\n", Line, Token.token);
-        exit(1);
-    }
-}
 
 // 返回乘性表达式
 struct ASTnode* multiplicative_expr(void)
@@ -42,7 +25,7 @@ struct ASTnode* multiplicative_expr(void)
         scan(&Token);  // 类型赋值
         right = primary();
 
-        left = mkastnode(arithop(tokentype), left, right, 0);
+       left = mkastnode(arithop(tokentype), left,NULL, right, 0);
          
         // 更新左值，如果没有则返回当前左值
         tokentype = Token.token;
@@ -78,7 +61,7 @@ struct ASTnode* additive_expr(void)
 
         right = multiplicative_expr();
     
-        left = mkastnode(arithop(tokentype), left, right, 0);
+        left = mkastnode(arithop(tokentype), left,NULL ,right, 0);
 
         // 更新 token类型并判断
         tokentype = Token.token;

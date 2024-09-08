@@ -27,12 +27,6 @@
     <ClCompile Include="expr.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="interp.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="expr2.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="cg.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -43,6 +37,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="misc.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="decl.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sym.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

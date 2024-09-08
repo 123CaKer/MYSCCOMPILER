@@ -33,7 +33,7 @@ static void scanfile()
 
 void doer(char *p,char * q) // p为输入文件，q为输出文件 
 {
-   // struct token* n;
+    struct token* tree;
     init();
 
     if ((Infile = fopen(p, "r")) == NULL) // 未打开文件
@@ -51,10 +51,11 @@ void doer(char *p,char * q) // p为输入文件，q为输出文件
     }
 
 
-    // 目前使用生成的.s文件进行输出 并在汇编器中执行 最终输出值 具体参考 charter 5
+    // 目前使用生成的.s文件进行输出 并在汇编器中执行 最终输出值 具体参考 ch 5
     scan(&Token);			// 判断类型
     genpreamble();		// 输出 preamble
-    statements();			 
+    tree = compound_statement();	// 生成复合AST
+    genAST(tree, NOREG, 0);	// 生成tree的汇编代码			 
     genpostamble();		// 输出 postamble
 
     fclose(Outfile);

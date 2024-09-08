@@ -6,7 +6,7 @@
 static char* ASTop[] = { "+", "-", "*", "/" };
 
 
-// 解释AST值   可改为汇编接口代码在gen.c
+// 解释AST值   可改为汇编接口代码为getAST（）
 int interpretAST(struct ASTnode* n)
 {
     int leftval;
@@ -19,7 +19,7 @@ int interpretAST(struct ASTnode* n)
         rightval = interpretAST(n->right);
 
     if (n->op == A_INTLIT)
-        printf("int %d\n", n->intvalue);
+        printf("int %d\n", n->v.intvalue);
     else
         printf("%d %s %d\n", leftval, ASTop[n->op], rightval);
 
@@ -34,7 +34,7 @@ int interpretAST(struct ASTnode* n)
     case A_DIVIDE:
         return leftval / rightval;
     case A_INTLIT:
-        return n->intvalue;
+        return  n->v.intvalue;
     default:
         fprintf(stderr, "Unknown AST operator %d\n", n->op);
         exit(1);
