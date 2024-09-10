@@ -43,7 +43,8 @@ static void free_register(int reg)
 // Êä³ö assembly preamble
 void cgpreamble()
 {
-	freeall_registers();
+	freeall_registers(); // ÊÍ·Å¼Ä´æÆ÷
+	/*
 	fputs(
 		"\t.text\n"
 		".LC0:\n"
@@ -68,6 +69,20 @@ void cgpreamble()
 		"\tpushq\t%rbp\n"
 		"\tmovq	%rsp, %rbp\n",
 		Outfile);
+		*/
+	fputs("\t.text\n"
+		".LC0:\n"
+		"\t.string\t\"%d\\n\"\n"
+		"printint:\n"
+		"\tpushq\t%rbp\n"
+		"\tmovq\t%rsp, %rbp\n"
+		"\tsubq\t$16, %rsp\n"
+		"\tmovl\t%edi, -4(%rbp)\n"
+		"\tmovl\t-4(%rbp), %eax\n"
+		"\tmovl\t%eax, %esi\n"
+		"\tleaq	.LC0(%rip), %rdi\n"
+		"\tmovl	$0, %eax\n"
+		"\tcall	printf@PLT\n" "\tnop\n" "\tleave\n" "\tret\n" "\n", Outfile);
 }
 
 // Êä³ö assembly postamble
@@ -243,4 +258,23 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label)
 	fprintf(Outfile, "\t%s\tL%d\n", invcmplist[ASTop - A_EQ], label);
 	freeall_registers();
 	return (NOREG);
+}
+
+
+
+// Print out a function preamble
+void cgfuncpreamble(char* name)
+{
+	fprintf(Outfile,
+		"\t.text\n"
+		"\t.globl\t%s\n"
+		"\t.type\t%s, @function\n"
+		"%s:\n" "\tpushq\t%%rbp\n"
+		"\tmovq\t%%rsp, %%rbp\n", name, name, name);
+}
+
+// Print out a function postamble
+void cgfuncpostamble()
+{
+	fputs("\tmovl $0, %eax\n" "\tpopq     %rbp\n" "\tret\n", Outfile);
 }

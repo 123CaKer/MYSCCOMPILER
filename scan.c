@@ -190,6 +190,9 @@ int scan(struct token* t)
             case T_FOR:
                 t->token = T_FOR;
                 break;
+            case T_VOID:
+                t->token = T_VOID;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -247,6 +250,9 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'f':
         if (!strcmp(s, "for"))
             return T_FOR;
+    case 'v':
+        if (!strcmp(s, "void"))
+            return T_VOID;
     }
     return 0;
 }

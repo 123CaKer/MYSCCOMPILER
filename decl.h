@@ -48,6 +48,9 @@ int cgstorglob(int r, char* identifier);
 //生成全局符号
 void cgglobsym(char* sym);
 
+void cgfuncpreamble(char* name);
+void cgfuncpostamble();
+
 
 // 判断
 int cgequal(int r1, int r2);
@@ -241,7 +244,7 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
 
     // We now have specific AST node handling at the top
-    switch (n->op)
+    switch (n->op)//此处填写语句类型 if fun 。。。
     {
     case A_IF:
         return genIFAST(n);
@@ -254,6 +257,13 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
         genfreeregs();
         genAST(n->right, NOREG, n->op);
         genfreeregs();
+        return NOREG;
+
+    case A_FUNCTION:
+        cgfuncpreamble(Gsym[n->v.id].name);  // 类似之前的cgpreamble生成函数前置码
+        genAST(n->left, NOREG, n->op);
+        cgfuncpostamble(); // 类似之前的cgpostamble生成函数前置码
+
         return NOREG;
     }
 
@@ -317,8 +327,6 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
         // 当前表达式已经执行完成，需要返回
         return rightreg; // 返回寄存器结果下标值
     case A_PRINT:
-        // Print the left-child's value
-        // and return no register
         genprintint(leftreg); // 打印左寄存器所存值
         /*
               A_PRINT
@@ -330,7 +338,6 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
         genfreeregs();
         return NOREG;
-
 
     default:
         fatald("Unknown AST operator", n->op);

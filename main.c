@@ -54,9 +54,13 @@ void doer(char *p,char * q) // p为输入文件，q为输出文件
     // 目前使用生成的.s文件进行输出 并在汇编器中执行 最终输出值 具体参考 ch 5
     scan(&Token);			// 判断类型
     genpreamble();		// 输出 preamble
-    tree = compound_statement();	// 生成复合AST
-    genAST(tree, NOREG, 0);	// 生成tree的汇编代码			 
-    genpostamble();		// 输出 postamble
+    while (1)
+    {                   
+        tree = function_declaration(); //语句是在函数里
+        genAST(tree, NOREG, 0);     
+        if (Token.token == T_EOF)   
+            break;
+    }
 
     fclose(Outfile);
     fclose(Infile); 

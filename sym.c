@@ -27,8 +27,7 @@ int findglob(char* s)
     return p;
 }
 
-// Add a global symbol to the symbol table.
-// Return the slot number in the symbol table
+// 向符号表增加全局符号并返回对应下标
 int addglob(char* name) 
 {
     int y;
