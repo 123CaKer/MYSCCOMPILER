@@ -100,6 +100,9 @@ int interpretAST(struct ASTnode* n);
 struct ASTnode* print_statement();
 struct ASTnode* assignment_statement();
 struct ASTnode* if_statement();
+
+struct ASTnode* for_statement();
+struct ASTnode* single_statement();
 struct ASTnode* compound_statement();
 struct ASTnode* while_statement();
 

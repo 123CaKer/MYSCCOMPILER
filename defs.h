@@ -13,7 +13,7 @@ enum
 	
 	
 	// Keywords
-	T_PRINT, T_INT, T_IF, T_ELSE,T_WHILE
+	T_PRINT, T_INT, T_IF, T_ELSE,T_WHILE,T_FOR
 };
  
 // AST 节点类型

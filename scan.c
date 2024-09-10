@@ -187,6 +187,9 @@ int scan(struct token* t)
             case T_WHILE:
                 t->token = T_WHILE;
                 break;
+            case T_FOR:
+                t->token = T_FOR;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -241,6 +244,9 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'w':
         if (!strcmp(s, "while"))
             return T_WHILE;
+    case 'f':
+        if (!strcmp(s, "for"))
+            return T_FOR;
     }
     return 0;
 }
