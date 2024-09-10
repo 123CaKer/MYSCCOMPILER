@@ -7,7 +7,7 @@ static int Globs = 0;                   // 空闲全局符号表位置
 int findglob(char* s) 
 {
     int i;
-
+     
     for (i = 0; i < Globs; i++) 
     {
         if (*s == *(Gsym[i].name) && !strcmp(s, Gsym[i].name))

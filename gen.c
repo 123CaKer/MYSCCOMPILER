@@ -3,7 +3,7 @@
 #include "decl.h"
 
 
-
+ 
 
 // 通用代码生成器
 void generatecode(struct ASTnode* n)   // 生成汇编代码

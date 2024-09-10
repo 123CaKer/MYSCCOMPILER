@@ -2,7 +2,7 @@
 #include "data.h"
 #include "decl.h"
 
-
+ 
 // ÉùÃ÷±äÁ¿
 void var_declaration(void)
 {

@@ -8,7 +8,7 @@
 #include<string.h>
 #include <errno.h>
 #define _ZZJSTART main
-
+ 
 static void init()// 初始化全局变量 
 {
     Line = 1;

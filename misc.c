@@ -1,7 +1,7 @@
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
-
+ 
 // 匹配关键字 在匹配的时候会获取下一个字符并进行全局token赋值
 void match(int t, char* what) 
 {

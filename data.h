@@ -1,6 +1,6 @@
 #pragma once
 #include<stdio.h>
-
+ 
 #ifndef myextern_
 #define myextern_ extern
 
