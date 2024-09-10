@@ -216,13 +216,14 @@ int cgcompare_and_set(int ASTop, int r1, int r2)
 	return (r2);
 }
 
-// Generate a label
+// Éú³É±êÇ©
 void cglabel(int l) {
 	fprintf(Outfile, "L%d:\n", l);
 }
 
 // Generate a jump to a label
-void cgjump(int l) {
+void cgjump(int l)
+{
 	fprintf(Outfile, "\tjmp\tL%d\n", l);
 }
 

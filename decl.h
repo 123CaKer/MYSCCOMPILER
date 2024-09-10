@@ -30,35 +30,6 @@ struct ASTnode* mkastunary(int op, struct ASTnode* left, int intvalue);// 生成左
 int mkastfree(struct ASTnode* ASTNode);
 struct ASTnode* binexpr(int);
 int interpretAST(struct ASTnode* n);
-static struct ASTnode* primary();//解析 token 并判断其对应的ASTNode 
-// static 每个文件
-static struct ASTnode* primary()
-{
-    struct ASTnode* n=NULL;
-    int id;
-    // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
-    switch (Token.token)
-    {
-    case T_INTLIT:
-        n = mkastleaf(A_INTLIT, Token.intvalue);
-        scan(&Token);  // 判断类型
-        return n;
-
-    case T_IDENT:
-        id = findglob(Text);
-        if (id == -1)
-            fatals("Unknown variable", Text);
-            
-        n = mkastleaf(A_IDENT, id);
-        break;
-    default:
-        fatald("Syntax error, token", Token.token);
-    }
-
-    scan(&Token);//扫描下一个令牌并返回叶子节点
-    return n;
-}
-
 
 // cg.c
 void generatecode(struct ASTnode* n);
@@ -130,6 +101,7 @@ struct ASTnode* print_statement();
 struct ASTnode* assignment_statement();
 struct ASTnode* if_statement();
 struct ASTnode* compound_statement();
+struct ASTnode* while_statement();
 
 
 // sym.c
@@ -140,13 +112,43 @@ int addglob(char* name);
 
 
 
-// gen.c中的静态代码
+// gen.c中的静态代码对应的是汇编中的 Label:
 static int label(void)
 {
     static int id = 1;
     ++id;
     return id;
 }
+
+static struct ASTnode* primary();//解析 token 并判断其对应的ASTNode 
+// static 每个文件
+static struct ASTnode* primary()
+{
+    struct ASTnode* n = NULL;
+    int id;
+    // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
+    switch (Token.token)
+    {
+    case T_INTLIT:
+        n = mkastleaf(A_INTLIT, Token.intvalue);
+        scan(&Token);  // 判断类型
+        return n;
+
+    case T_IDENT:
+        id = findglob(Text);
+        if (id == -1)
+            fatals("Unknown variable", Text);
+
+        n = mkastleaf(A_IDENT, id);
+        break;
+    default:
+        fatald("Syntax error, token", Token.token);
+    }
+
+    scan(&Token);//扫描下一个令牌并返回叶子节点
+    return n;
+}
+
 
 // 生成 if  if_else 从句 
 static int genIFAST(struct ASTnode* n)
@@ -195,6 +197,34 @@ static int genIFAST(struct ASTnode* n)
     return NOREG;
 }
 
+static int genWHILE(struct ASTnode* n)
+{
+
+    int Lstart, Lend;
+
+    // 生成标签
+    Lstart = label();
+    Lend = label();
+    // 依照汇编语法生成汇编形式的while
+    cglabel(Lstart);
+
+
+    genAST(n->left, Lend, n->op);
+    genfreeregs();
+
+    genAST(n->right, NOREG, n->op);
+    genfreeregs();
+
+    cgjump(Lstart);
+    cglabel(Lend);  // 跳出while
+    return NOREG;
+
+
+
+
+}
+
+
 
 
 static int genAST(struct ASTnode* n, int reg, int parentASTop);
@@ -212,6 +242,8 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     {
     case A_IF:
         return genIFAST(n);
+    case A_WHILE:
+        return genWHILE(n);
     case A_GLUE:
         // Do each child statement, and free the
         // registers after each child
@@ -247,32 +279,32 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
         // 比较判断 传入的值为左右寄存器编号
     case A_EQ:
-        if (parentASTop == A_IF)
+        if (parentASTop == A_IF|| parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cgequal(leftreg, rightreg);
     case A_NE:
-        if (parentASTop == A_IF)
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cgnotequal(leftreg, rightreg);
     case A_LT:
-        if (parentASTop == A_IF)
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cglessthan(leftreg, rightreg);
     case A_GT:
-        if (parentASTop == A_IF)
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cggreaterthan(leftreg, rightreg);
     case A_LE:
-        if (parentASTop == A_IF)
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cglessequal(leftreg, rightreg);
     case A_GE:
-        if (parentASTop == A_IF)
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cggreaterequal(leftreg, rightreg);

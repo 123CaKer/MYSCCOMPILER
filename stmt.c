@@ -110,6 +110,28 @@ struct ASTnode *  if_statement()
 }
 
 
+struct ASTnode* while_statement()
+{
+    struct ASTnode* condAST=NULL;
+    struct ASTnode* bodyAST = NULL;
+    struct ASTnode* ASTn = NULL;
+   
+    match(T_WHILE, "while"); // ∆•≈‰while πÿº¸◊÷
+    lparen();// ∆•≈‰ £®
+
+    condAST = binexpr(0);
+    if (condAST->op < A_EQ || condAST->op > A_GE)
+        fatal("Bad comparison operator");
+    rparen();// ∆•≈‰ )
+
+    bodyAST = compound_statement();// {  ... }
+    ASTn = mkastnode(A_WHILE,condAST,NULL,bodyAST,0);
+    return ASTn;
+
+}
+
+
+
 
 // Ω‚Œˆ∂‡∏ˆ”Ôæ‰ £®BNF£©
 struct ASTnode* compound_statement()
@@ -136,6 +158,9 @@ struct ASTnode* compound_statement()
         case T_IF:
             tree = if_statement();
             break;
+        case T_WHILE:
+            tree = while_statement();
+            break;
         case T_RBRACE: // ∆•≈‰”“¥Û¿®∫≈
             rbrace();
             return left;
@@ -155,3 +180,4 @@ struct ASTnode* compound_statement()
 
     }
 }
+
