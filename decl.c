@@ -4,15 +4,16 @@
 
  
 // 声明变量
-void var_declaration(void)
+void var_declaration()
 {
-
+		int id, type;
+		type = parse_type(Token.token);// 解析当前类型
+		scan(&Token);
+		ident();
+		id = addglob(Text, type, S_VARIABLE);// 向符号表添加
+		genglobsym(id);// 生成全局符号（）
+		semi();
 	
-	match(T_INT, "int");
-	ident();
-	addglob(Text);  // 全局符号表加入 也就是 int x; 把 x加入符号表
-	genglobsym(Text);
-	semi(); //;
 }
 
 
@@ -23,10 +24,23 @@ struct ASTnode* function_declaration()
 	int nameslot;
 	match(T_VOID,"void");
 	ident();
-	nameslot = addglob(Text);
+	nameslot = addglob(Text,P_VOID,S_FUNCTION);
 	lparen();
 	rparen();
 	tree = compound_statement();
-	return mkastunary(A_FUNCTION, tree, nameslot);
+	return mkastunary(A_FUNCTION,P_VOID, tree, nameslot);
 
 }
+
+
+// 解析变量声明
+int parse_type(int t)
+{
+	if (t == T_CHAR) return P_CHAR;
+	if (t == T_INT)  return P_INT;
+	if (t == T_VOID) return P_VOID;
+	fatald("Illegal type, token", t);
+}
+
+// 解析变量声明，将当前类型
+

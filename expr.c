@@ -58,6 +58,7 @@ static int op_precedence(int tokentype)
 struct ASTnode* binexpr(int p) 
 {
     struct ASTnode* n, * left, * right;
+    int lefttype, righttype;
     int tokentype;
 
     // 获取整数，并给到左 
@@ -95,9 +96,21 @@ struct ASTnode* binexpr(int p)
         // 右递归调用生成右子树
         right = binexpr(OpPrec[tokentype]);
 
+        lefttype = left->type;
+        righttype = right->type;
+        if (type_compatible(&(lefttype), &(righttype), 0)==0)
+            fatal("Incompatible types");
+
+
+        // 将类型改为宽适配，小类型适配大类型 即生成A_WIDEN节点
+        if (lefttype)//char 和 int 小的改为 A_WIDEN 另一个为0
+            left = mkastunary(lefttype, right->type, left, 0);
+        if (righttype)
+            right = mkastunary(righttype, left->type, right, 0);
+
         // 生成ast节点
-        left = mkastnode(arithop(tokentype), left, NULL, right, 0);  
-        // 目前排查错误为tokentype二次转换，但依照ch8 更改 enum 顺序值
+        left = mkastnode(arithop(tokentype), left->type, left, NULL, right, 0);
+        
 
         tokentype = Token.token;  // 更新 token
         if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN)// 匹配)

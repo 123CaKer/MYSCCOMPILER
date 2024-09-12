@@ -45,6 +45,9 @@
     <ClCompile Include="sym.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="types.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.h">

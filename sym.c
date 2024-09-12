@@ -28,7 +28,7 @@ int findglob(char* s)
 }
 
 // 向符号表增加全局符号并返回对应下标
-int addglob(char* name) 
+int addglob(char* name, int type, int stype)
 {
     int y;
 
@@ -40,5 +40,7 @@ int addglob(char* name)
     // return the slot number
     y = newglob();
     Gsym[y].name = strdup(name);
+    Gsym[y].type = type;
+    Gsym[y].stype = stype;
     return y;
 }

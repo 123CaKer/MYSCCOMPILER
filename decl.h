@@ -24,9 +24,9 @@ void fatalc(char* s, int c);
 
 
 int scan(struct token* t); // 判断令牌内容
-struct ASTnode* mkastnode(int op, struct ASTnode* left, struct ASTnode* mid,struct ASTnode* right, int intvalue);
-struct ASTnode* mkastleaf(int op, int intvalue);// 生成叶子节点
-struct ASTnode* mkastunary(int op, struct ASTnode* left, int intvalue);// 生成左子树AST 
+struct ASTnode* mkastnode(int op, int type, struct ASTnode* left, struct ASTnode* mid, struct ASTnode* right, int intvalue);
+struct ASTnode* mkastleaf(int op, int type, int intvalue);// 生成叶子节点
+struct ASTnode* mkastunary(int op, int type, struct ASTnode* left, int intvalue);// 生成左子树AST 
 int mkastfree(struct ASTnode* ASTNode);
 struct ASTnode* binexpr(int);
 int interpretAST(struct ASTnode* n);
@@ -42,12 +42,11 @@ int cgsub(int r1, int r2);
 int cgmul(int r1, int r2);
 int cgdiv(int r1, int r2);
 void cgprintint(int r);
-int cgloadglob(char* identifier);
+int cgloadglob(int id);
 // Store a register's value into a variable
-int cgstorglob(int r, char* identifier);
+int cgstorglob(int r, int id);
 //生成全局符号
-void cgglobsym(char* sym);
-
+void genglobsym(int id);
 void cgfuncpreamble(char* name);
 void cgfuncpostamble();
 
@@ -113,9 +112,10 @@ struct ASTnode* while_statement();
 // sym.c
 int findglob(char* s);
 int newglob(void);
-int addglob(char* name);
+int addglob(char* name, int type, int stype);
 
-
+// types.c
+int type_compatible(int* left, int* right, int onlyright);
 
 
 // gen.c中的静态代码对应的是汇编中的 Label:
@@ -126,7 +126,7 @@ static int label(void)
     return id;
 }
 
-static struct ASTnode* primary();//解析 token 并判断其对应的ASTNode 
+static struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
 // static 每个文件
 static struct ASTnode* primary()
 {
@@ -135,17 +135,25 @@ static struct ASTnode* primary()
     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
     switch (Token.token)
     {
-    case T_INTLIT:
-        n = mkastleaf(A_INTLIT, Token.intvalue);
-        scan(&Token);  // 判断类型
-        return n;
+    case T_INTLIT: //值
+       
+        if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
+            n = mkastleaf(A_INTLIT, P_CHAR, Token.intvalue);
+        else                                                // int型
+            n = mkastleaf(A_INTLIT, P_INT, Token.intvalue);
+
+
+
+
+
+        break;
 
     case T_IDENT:
         id = findglob(Text);
         if (id == -1)
             fatals("Unknown variable", Text);
 
-        n = mkastleaf(A_IDENT, id);
+        n = mkastleaf(A_IDENT,Gsym[id].type,id);
         break;
     default:
         fatald("Syntax error, token", Token.token);
@@ -285,10 +293,10 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     case A_INTLIT:
         return cgloadint(n->v.intvalue); // 返回分配的寄存器下标号
     case A_IDENT:
-        return cgloadglob(Gsym[n->v.id].name);
+        return cgloadglob(n->v.id);
     case A_LVIDENT:
        // printf(" the reg is %d\n",reg);
-        return cgstorglob(reg, Gsym[n->v.id].name);
+        return cgstorglob(reg, n->v.id);
 
         // 比较判断 传入的值为左右寄存器编号
     case A_EQ:
@@ -338,6 +346,10 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
         genfreeregs();
         return NOREG;
+
+    case A_WIDEN:
+        // Widen the child's type to the parent's type
+        return (cgwiden(leftreg, n->left->type, n->type));
 
     default:
         fatald("Unknown AST operator", n->op);

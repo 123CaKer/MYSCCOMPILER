@@ -13,7 +13,7 @@ enum
 	
 	
 	// Keywords
-	T_PRINT, T_INT, T_IF, T_ELSE,T_WHILE,T_FOR,
+	T_PRINT, T_INT,T_CHAR,T_IF, T_ELSE,T_WHILE,T_FOR,
 
 	// funcations
 	T_VOID
@@ -25,9 +25,27 @@ enum
 	A_ADD = 1, A_SUBTRACT, A_MULTIPLY, A_DIVIDE,
 	A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE,
 	A_INTLIT,
-	A_IDENT, A_LVIDENT, A_ASSIGN, A_PRINT, A_GLUE, A_IF,A_WHILE,A_FUNCTION
+	A_IDENT, A_LVIDENT, A_ASSIGN, A_PRINT, A_GLUE, A_IF,A_WHILE,A_FUNCTION, A_WIDEN
 	
 };
+
+// 变量类型
+enum
+{
+	P_NONE,  //当前AST节点并不是表达式或者一种变量 例如 A_GLUE 
+	P_VOID,
+	P_CHAR,
+	P_INT
+};
+
+
+// Structural types
+enum 
+{
+	S_VARIABLE, // 变量
+	S_FUNCTION  // 函数
+};
+
 
 // 令牌结构体
 struct token
@@ -40,6 +58,7 @@ struct token
 struct ASTnode
 {
 	int op;                               //  opertor 例如 3+2 中的 +  即A_ADD  A_SUBTRACT
+	int type;
 	struct ASTnode* left; 
 	struct ASTnode* mid;
 	struct ASTnode* right;
@@ -56,4 +75,10 @@ struct ASTnode
 struct symtable
 {
 	char* name;                   // 符号名
+	int type;                     // 初等基本类型
+	int stype;                    // Structural types
+
 };
+
+
+

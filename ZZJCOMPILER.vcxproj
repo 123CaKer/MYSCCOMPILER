@@ -149,6 +149,7 @@
     <ClCompile Include="stmt.c" />
     <ClCompile Include="sym.c" />
     <ClCompile Include="tree.c" />
+    <ClCompile Include="types.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="data.h" />

@@ -33,7 +33,7 @@ void genprintint(int reg)
     cgprintint(reg);
 }
 
-void genglobsym(char* s) 
+void genglobsym(int id) 
 {
-    cgglobsym(s);
+    cgglobsym(id);
 }
