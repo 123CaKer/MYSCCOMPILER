@@ -44,7 +44,7 @@ struct ASTnode* assignment_statement()
     
     ident(); // 匹配标识符
      
-    if (Token.token == T_LBRACE)  //函数调用 下面正常执行
+    if (Token.token == T_LPAREN)  //函数调用 下面正常执行
         return funccall();
 
    // reject_token(&Token);
@@ -277,7 +277,7 @@ struct ASTnode* compound_statement()
         tree = single_statement();
 
        
-        if (tree != NULL && (tree->op == A_PRINT || tree->op == A_ASSIGN|| tree->op==A_RETURN))
+        if (tree != NULL && (tree->op == A_PRINT || tree->op == A_ASSIGN|| tree->op==A_RETURN || tree->op == A_FUNCCALL))
             semi();
 
         if (tree != NULL) 

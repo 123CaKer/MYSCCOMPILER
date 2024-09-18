@@ -74,7 +74,7 @@ void cgpreamble()
 		"\tmovq	%rsp, %rbp\n",
 		Outfile);
 		*/
-	fputs("\t.text\n"
+	/*fputs("\t.text\n"
 		".LC0:\n"
 		"\t.string\t\"%d\\n\"\n"
 		"printint:\n"
@@ -87,8 +87,14 @@ void cgpreamble()
 		"\tleaq	.LC0(%rip), %rdi\n"
 		"\tmovl	$0, %eax\n"
 		"\tcall	printf@PLT\n" "\tnop\n" "\tleave\n" "\tret\n" "\n", Outfile);
-		
-	//fputs("\t.text\n", Outfile);
+		*/
+	fputs("\t.text\n", Outfile);
+
+	/*
+	    使用外部库fputs("\t.text\n", Outfile);
+		不用外部库时使用第二段
+	
+	*/
 }
 
 // 输出 assembly postamble
