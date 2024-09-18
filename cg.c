@@ -5,7 +5,11 @@
 // 生成 x86-64 汇编代码
 static int freereg[4] = {0}; // 对应的4个寄存器的使用状况
 static char* reglist[4] = { "%r8", "%r9", "%r10", "%r11" };// 名
-static char* breglist[4] = { "%r8b", "%r9b", "%r10b", "%r11b" }; // b代表 r8寄存器低8位
+static char* breglist[4] = { "%r8b", "%r9b", "%r10b", "%r11b" }; // b代表 32位 r8寄存器低8位
+static char* dreglist[4] = { "%r8d", "%r9d", "%r10d", "%r11d" };// d代表 64位 r8寄存器低8位
+
+// 0 means no size. P_NONE, P_VOID, P_CHAR, P_INT, P_LONG
+static int psize[] = { 0,       0,      1,     4,     8 };
 
 // 空闲为1 释放所有寄存器
 void freeall_registers(void)
@@ -83,6 +87,8 @@ void cgpreamble()
 		"\tleaq	.LC0(%rip), %rdi\n"
 		"\tmovl	$0, %eax\n"
 		"\tcall	printf@PLT\n" "\tnop\n" "\tleave\n" "\tret\n" "\n", Outfile);
+		
+	//fputs("\t.text\n", Outfile);
 }
 
 // 输出 assembly postamble
@@ -98,8 +104,6 @@ void cgpostamble()
 // 整型变量加载到寄存器中
 int cgloadint(int value)
 {
-
-	
 	int r = alloc_register();
 
 	// Print out the code to initialise it
@@ -189,46 +193,65 @@ void cgprintint(int r)
 	fprintf(Outfile, "\tcall\tprintint\n");
 	free_register(r);
 }
-
+// 从符号表中取得符号并实现mov到 rip寄存器
 int cgloadglob(int id) 
 {
 	int r = alloc_register();
 
 	// Print out the code to initialise it
-	if (Gsym[id].type == P_INT)
+	switch (Gsym[id].type)
+	{
+	case P_CHAR:
+		fprintf(Outfile, "\tmovzbq\t%s(\%%rip), %s\n", Gsym[id].name,
+			reglist[r]);
+		break;
+	case P_INT:
+		fprintf(Outfile, "\tmovzbl\t%s(\%%rip), %s\n", Gsym[id].name,
+			reglist[r]);
+		break;
+	case P_LONG:
 		fprintf(Outfile, "\tmovq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
-	else
-		fprintf(Outfile, "\tmovzbq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
-	return (r);
+		break;
+	default:
+		fatald("Bad type in cgloadglob:", Gsym[id].type);
+	}
+	return r;
 }
 
 // Store a register's value into a variable
 int cgstorglob(int r, int id) 
 {
-	if (Gsym[id].type == P_INT)
-	fprintf(Outfile, "\tmovq\t%s, %s(\%%rip)\n", reglist[r], Gsym[id].name);
-	else
-	fprintf(Outfile, "\tmovb\t%s, %s(\%%rip)\n", breglist[r], Gsym[id].name);
+	switch (Gsym[id].type)
+	{
+	case P_CHAR:
+		fprintf(Outfile, "\tmovb\t%s, %s(\%%rip)\n", breglist[r],Gsym[id].name);
+		break;
+	case P_INT:
+		fprintf(Outfile, "\tmovl\t%s, %s(\%%rip)\n", dreglist[r],Gsym[id].name);
+		break;
+	case P_LONG:
+		fprintf(Outfile, "\tmovq\t%s, %s(\%%rip)\n", reglist[r], Gsym[id].name);
+		break;
+	default:
+		fatald("Bad type in cgloadglob:", Gsym[id].type);
+		
+	}
 	return r;
 }
 
 //生成全局符号
 void cgglobsym(int id)
 {
-	if (Gsym[id].type==P_INT)
-	{
-		fprintf(Outfile, "\t.comm\t%s,8,8\n", Gsym[id].name);
-	}
-	else
-	{
-		fprintf(Outfile, "\t.comm\t%s,1,1\n", Gsym[id].name);
-	}
+		int typesize;
+		typesize = cgprimsize(Gsym[id].type); // 获取大小
+		fprintf(Outfile, "\t.comm\t%s,%d,%d\n", Gsym[id].name, typesize, typesize);
+	
+
 	
 }
-
 // List of comparison instructions,
 // in AST order: A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE
-static char* cmplist[] ={ "sete", "setne", "setl", "setg", "setle", "setge" };
+static char* cmplist[] = { "sete", "setne", "setl", "setg", "setle", "setge" };
 
 // Compare two registers and set if true.
 int cgcompare_and_set(int ASTop, int r1, int r2)
@@ -246,7 +269,8 @@ int cgcompare_and_set(int ASTop, int r1, int r2)
 }
 
 // 生成标签
-void cglabel(int l) {
+void cglabel(int l) 
+{
 	fprintf(Outfile, "L%d:\n", l);
 }
 
@@ -277,8 +301,9 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label)
 
 
 // Print out a function preamble
-void cgfuncpreamble(char* name)
+void cgfuncpreamble(int id)
 {
+	char* name = Gsym[id].name;
 	fprintf(Outfile,
 		"\t.text\n"
 		"\t.globl\t%s\n"
@@ -287,10 +312,11 @@ void cgfuncpreamble(char* name)
 		"\tmovq\t%%rsp, %%rbp\n", name, name, name);
 }
 
-// Print out a function postamble
-void cgfuncpostamble()
+// 打印函数后缀码 postamble
+void cgfuncpostamble(int id)
 {
-	fputs("\tmovl $0, %eax\n" "\tpopq     %rbp\n" "\tret\n", Outfile);
+	cglabel(Gsym[id].endlabel);
+	fputs("\tpopq %rbp\n" "\tret\n", Outfile);
 }
 
 
@@ -301,4 +327,45 @@ int cgwiden(int r, int oldtype, int newtype)
 {
 	// Nothing to do
 	return (r);
+}
+
+// 获取类型大小 依比特为准
+int cgprimsize(int type)
+{
+	// Check the type is valid
+	if (type < P_NONE || type > P_LONG)
+		fatal("Bad type in cgprimsize()");
+	return (psize[type]);
+}
+
+int cgcall(int r, int id) 
+{
+	// Get a new register
+	int outr = alloc_register();
+	fprintf(Outfile, "\tmovq\t%s, %%rdi\n", reglist[r]);
+	fprintf(Outfile, "\tcall\t%s\n", Gsym[id].name);
+	fprintf(Outfile, "\tmovq\t%%rax, %s\n", reglist[outr]);
+	free_register(r);
+	return (outr);
+}
+
+// Generate code to return a value from a function
+void cgreturn(int reg, int id)
+{
+	// Generate code depending on the function's type
+	switch (Gsym[id].type)
+	{
+	case P_CHAR:
+		fprintf(Outfile, "\tmovzbl\t%s, %%eax\n", breglist[reg]);
+		break;
+	case P_INT:
+		fprintf(Outfile, "\tmovl\t%s, %%eax\n", dreglist[reg]);
+		break;
+	case P_LONG:
+		fprintf(Outfile, "\tmovq\t%s, %%rax\n", reglist[reg]);
+		break;
+	default:
+		fatald("Bad function type in cgreturn:", Gsym[id].type);
+	}
+	cgjump(Gsym[id].endlabel);
 }

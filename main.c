@@ -50,6 +50,8 @@ void doer(char *p,char * q) // p为输入文件，q为输出文件
         exit(1);
     }
 
+    // For now, ensure that void printint() is defined
+    addglob("printint", P_CHAR, S_FUNCTION, 0);
 
     // 目前使用生成的.s文件进行输出 并在汇编器中执行 最终输出值 具体参考 ch 5
     scan(&Token);			// 判断类型

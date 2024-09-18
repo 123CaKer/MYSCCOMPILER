@@ -4,7 +4,6 @@
  
 
 // misc.c
-void match(int t, char* what);
 void semi(void);
 // 声明变量
 // 匹配关键字
@@ -32,7 +31,7 @@ struct ASTnode* binexpr(int);
 int interpretAST(struct ASTnode* n);
 
 // cg.c
-void generatecode(struct ASTnode* n);
+//void generatecode(struct ASTnode* n);
 void freeall_registers(void);
 void cgpreamble();
 void cgpostamble();
@@ -47,8 +46,10 @@ int cgloadglob(int id);
 int cgstorglob(int r, int id);
 //生成全局符号
 void genglobsym(int id);
-void cgfuncpreamble(char* name);
-void cgfuncpostamble();
+void cgfuncpreamble(int);
+void cgfuncpostamble(int id);
+void cgreturn(int reg, int id);
+void reject_token(struct token* t);
 
 
 // 判断
@@ -77,12 +78,14 @@ static int op_precedence(int tokentype);
 // 生成语法树 返回root为+ - * /的ast树  其中p为之前的优先级
 struct ASTnode* binexpr(int p);
 
+struct ASTnode* funccall(void); //函数调用
+
 
 //expr2.c
 // 返回乘性表达式
-struct ASTnode* multiplicative_expr(void);
+//struct ASTnode* multiplicative_expr(void);
 // 加性表达式
-struct ASTnode* additive_expr(void);
+//struct ASTnode* additive_expr(void);
 
 
 // gen.c
@@ -90,12 +93,13 @@ void genpreamble();
 void genpostamble();
 void genfreeregs();
 void genprintint(int reg);
-void genglobsym(char* s);
+void genglobsym(int id);
+int genprimsize(int type);
 
 
 //interp.c
 // 解释AST值   可改为汇编接口代码在gen.c
-int interpretAST(struct ASTnode* n);
+//int interpretAST(struct ASTnode* n);
 
 
 // stmt.c
@@ -112,20 +116,13 @@ struct ASTnode* while_statement();
 // sym.c
 int findglob(char* s);
 int newglob(void);
-int addglob(char* name, int type, int stype);
+int addglob(char* name, int type, int stype,int endlabel);
 
 // types.c
 int type_compatible(int* left, int* right, int onlyright);
 
-
 // gen.c中的静态代码对应的是汇编中的 Label:
-static int label(void)
-{
-    static int id = 1;
-    ++id;
-    return id;
-}
-
+//下标识
 static struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
 // static 每个文件
 static struct ASTnode* primary()
@@ -136,24 +133,24 @@ static struct ASTnode* primary()
     switch (Token.token)
     {
     case T_INTLIT: //值
-       
+
         if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
             n = mkastleaf(A_INTLIT, P_CHAR, Token.intvalue);
         else                                                // int型
             n = mkastleaf(A_INTLIT, P_INT, Token.intvalue);
-
-
-
-
-
         break;
 
     case T_IDENT:
         id = findglob(Text);
         if (id == -1)
             fatals("Unknown variable", Text);
+        scan(&Token);
+        if (Token.token == T_LPAREN)
+            return funccall();
+        reject_token(&Token);
 
-        n = mkastleaf(A_IDENT,Gsym[id].type,id);
+
+        n = mkastleaf(A_IDENT, Gsym[id].type, id);
         break;
     default:
         fatald("Syntax error, token", Token.token);
@@ -180,9 +177,9 @@ static int genIFAST(struct ASTnode* n)
 生成两个标签：一个用于假复合语句，另一个用于
 整个IF语句的结尾。当没有ELSE子句时，Lfalse是结束标签！
     */
-    Lfalse = label();
+    Lfalse = genlabel();
     if (n->right)      // 若假分支 存在语句
-        Lend = label();
+        Lend = genlabel();
 
 
 
@@ -217,8 +214,8 @@ static int genWHILE(struct ASTnode* n)
     int Lstart, Lend;
 
     // 生成标签
-    Lstart = label();
-    Lend = label();
+    Lstart = genlabel();
+    Lend = genlabel();
     // 依照汇编语法生成汇编形式的while
     cglabel(Lstart);
 
@@ -239,9 +236,6 @@ static int genWHILE(struct ASTnode* n)
 }
 
 
-
-
-static int genAST(struct ASTnode* n, int reg, int parentASTop);
 // interpretAST的汇编接口版本
 static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用寄存器对应下标
 {
@@ -267,12 +261,13 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
         genfreeregs();
         return NOREG;
 
-    case A_FUNCTION:
-        cgfuncpreamble(Gsym[n->v.id].name);  // 类似之前的cgpreamble生成函数前置码
-        genAST(n->left, NOREG, n->op);
-        cgfuncpostamble(); // 类似之前的cgpostamble生成函数前置码
 
+    case A_FUNCTION:
+        cgfuncpreamble(n->v.id);  // 类似之前的cgpreamble生成函数前置码
+        genAST(n->left, NOREG, n->op);
+        cgfuncpostamble(n->v.id); // 类似之前的cgpostamble生成函数前置码
         return NOREG;
+
     }
 
     if (n->left)
@@ -295,12 +290,12 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     case A_IDENT:
         return cgloadglob(n->v.id);
     case A_LVIDENT:
-       // printf(" the reg is %d\n",reg);
+        // printf(" the reg is %d\n",reg);
         return cgstorglob(reg, n->v.id);
 
         // 比较判断 传入的值为左右寄存器编号
     case A_EQ:
-        if (parentASTop == A_IF|| parentASTop == A_WHILE)
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
         else
             return cgequal(leftreg, rightreg);
@@ -339,7 +334,7 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
         /*
               A_PRINT
               /     \
-            +        print
+            +
           /   \
          1     2
         */
@@ -350,6 +345,13 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     case A_WIDEN:
         // Widen the child's type to the parent's type
         return (cgwiden(leftreg, n->left->type, n->type));
+
+    case A_RETURN:
+        cgreturn(leftreg, Functionid);
+        return (NOREG);
+
+    case A_FUNCCALL:
+        return (cgcall(leftreg, n->v.id));
 
     default:
         fatald("Unknown AST operator", n->op);

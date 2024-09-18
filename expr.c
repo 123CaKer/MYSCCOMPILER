@@ -60,9 +60,9 @@ struct ASTnode* binexpr(int p)
     struct ASTnode* n, * left, * right;
     int lefttype, righttype;
     int tokentype;
-
     // 获取整数，并给到左 
     left = primary();
+    
 
     /*
                +    
@@ -119,3 +119,30 @@ struct ASTnode* binexpr(int p)
    
     return left; //返回创建
 } 
+
+struct ASTnode* funccall(void)
+{
+    struct ASTnode* tree;
+    int id;
+
+    // Check that the identifier has been defined,
+    // then make a leaf node for it. XXX Add structural type test
+    if ((id = findglob(Text)) == -1)
+    {
+        fatals("Undeclared function", Text);
+    }
+    // Get the '('
+    lparen();
+
+    // Parse the following expression
+    tree = binexpr(0);
+
+    // Build the function call AST node. Store the
+    // function's return type as this node's type.
+    // Also record the function's symbol-id
+    tree = mkastunary(A_FUNCCALL, Gsym[id].type, tree, id);
+
+    // Get the ')'
+    rparen();
+    return (tree);
+}

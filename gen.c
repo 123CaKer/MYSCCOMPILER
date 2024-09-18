@@ -2,19 +2,12 @@
 #include "data.h"
 #include "decl.h"
 
-
- 
-
-// 通用代码生成器
-void generatecode(struct ASTnode* n)   // 生成汇编代码
+int genlabel(void)
 {
-    int reg;
-
-    cgpreamble();
-    reg = genAST(n,NOREG,-1);// 寄存器存储的是AST值
-    cgprintint(reg);// 输出reg的值
-    cgpostamble();
+    static int id = 1;
+    return (id++);
 }
+ 
 
 void genpreamble()
 {
@@ -36,4 +29,9 @@ void genprintint(int reg)
 void genglobsym(int id) 
 {
     cgglobsym(id);
+}
+
+int genprimsize(int type) 
+{
+    return (cgprimsize(type));
 }

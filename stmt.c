@@ -43,6 +43,11 @@ struct ASTnode* assignment_statement()
     int id;
     
     ident(); // 匹配标识符
+     
+    if (Token.token == T_LBRACE)  //函数调用 下面正常执行
+        return funccall();
+
+   // reject_token(&Token);
 
     id = findglob(Text);  // 返回标识符在符号表下标
     if (id == -1)
@@ -54,7 +59,7 @@ struct ASTnode* assignment_statement()
 
     // 匹配等号 =
     match(T_ASSIGN, "=");
-
+ 
     // 生成ast
     left = binexpr(0);
 
@@ -76,7 +81,7 @@ struct ASTnode* assignment_statement()
    
     // 生成赋值ast
     tree = mkastnode(A_ASSIGN, P_INT, left, NULL,right, 0);// 强制转型为P_INT 最大
-    genfreeregs();
+//    genfreeregs();
    // semi();
     return tree;
 }
@@ -93,9 +98,6 @@ struct ASTnode* print_statement()
 
     //匹配第一个为print
     match(T_PRINT, "print");
-
-
-
     // 生成计算型AST
     n = binexpr(0);
 
@@ -109,7 +111,7 @@ struct ASTnode* print_statement()
 
     // 生成
     n = mkastunary(A_PRINT, P_NONE, n, 0);
-
+  
     genfreeregs();
     //semi();  
     return n;
@@ -200,6 +202,35 @@ struct ASTnode* while_statement()
     return mkastnode(A_GLUE,  P_NONE, preopAST, NULL, tree, 0);
 }
 
+ static struct ASTnode* return_statement()
+ {
+     struct ASTnode* tree;
+     int returntype;
+     int  functype;
+
+     if (Gsym[Functionid].type == P_VOID)
+         fatal("Can't return from a void function");
+
+     match(T_RETURN,"return");
+     lparen();
+
+     tree = binexpr(0);
+     functype = Gsym[Functionid].type;
+     returntype = tree->type;
+     if (type_compatible(&returntype, &functype,1)==0)
+         fatal("Incompatible types");
+
+     if (returntype==A_WIDEN)
+         tree = mkastunary(returntype, functype, tree, 0);
+
+     rparen();
+
+
+     // 最终生成A_RETURN
+     tree = mkastunary(A_RETURN, functype, tree, 0);
+     return tree;
+ }
+
 struct ASTnode* single_statement() 
 {
     switch (Token.token)
@@ -220,6 +251,8 @@ struct ASTnode* single_statement()
         return while_statement();
     case T_FOR:
         return for_statement();
+    case T_RETURN:
+        return return_statement();
     default:
         fatald("Syntax error, token", Token.token);
     }
@@ -241,7 +274,7 @@ struct ASTnode* compound_statement()
         tree = single_statement();
 
        
-        if (tree != NULL && (tree->op == A_PRINT || tree->op == A_ASSIGN))
+        if (tree != NULL && (tree->op == A_PRINT || tree->op == A_ASSIGN|| tree->op==A_RETURN))
             semi();
 
         if (tree != NULL) 

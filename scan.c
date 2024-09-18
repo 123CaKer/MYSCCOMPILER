@@ -3,6 +3,9 @@
 #include "decl.h"
 
 
+// rejtoken 指针
+static struct token* Rejtoken = NULL;
+
 static int chrpos(char* s, int c)
 // 返回c在s中的位置（第一个）
 {
@@ -64,12 +67,32 @@ static int scanint(int c)
     return val;
 }
 
+
+//  Rejtoken = t;
+void reject_token(struct token* t) 
+{
+    if (Rejtoken != NULL)
+        fatal("Can't reject token twice");
+    Rejtoken = t;
+}
+
+
+
 // 扫描token并判断类型并返回
 int scan(struct token* t) 
 {
     int c = 0;
     //int tokentype=2 ;
 
+
+
+  // 查看是否有之前拒绝的token 若有的话将全局token 设置为Rejtoken并返回
+    if (Rejtoken != NULL) 
+    {
+        t = Rejtoken;
+        Rejtoken = NULL;
+        return 1;
+    }
     
     c = skip();  // 忽略空格换行符等 类似getc
 
@@ -196,6 +219,9 @@ int scan(struct token* t)
             case T_CHAR:
                 t->token = T_CHAR;
                 break;
+            case T_RETURN:
+                t->token = T_RETURN;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -259,6 +285,9 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'c':
         if (!strcmp(s, "char"))
             return T_CHAR;
+    case 'r':
+        if (!strcmp(s, "return"))
+            return T_RETURN;
     }
     return 0;
 }
