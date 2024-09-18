@@ -219,6 +219,9 @@ int scan(struct token* t)
             case T_CHAR:
                 t->token = T_CHAR;
                 break;
+            case T_LONG:
+                t->token = T_LONG;
+                break;
             case T_RETURN:
                 t->token = T_RETURN;
                 break;
@@ -288,6 +291,9 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'r':
         if (!strcmp(s, "return"))
             return T_RETURN;
+    case 'l':
+        if (!strcmp(s, "long"))
+            return T_LONG;
     }
     return 0;
 }

@@ -68,6 +68,8 @@ int parse_type(int t)
 		return P_INT;
 	if (t == T_VOID)
 		return P_VOID;
+	if (t==T_LONG)
+		return P_LONG;
 	fatald("Illegal type, token", t);
 }
 

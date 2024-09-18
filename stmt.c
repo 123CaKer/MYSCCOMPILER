@@ -243,6 +243,9 @@ struct ASTnode* single_statement()
     case T_CHAR:
         var_declaration();
         return NULL;
+    case T_LONG:
+        var_declaration();
+        return NULL;
     case T_IDENT:
         return assignment_statement();
     case T_IF:
