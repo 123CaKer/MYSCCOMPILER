@@ -26,7 +26,6 @@ int findglob(char* s)
         fatal("Too many global symbols");
     return p;
 }
-
 // 向符号表增加全局符号并返回对应下标
 int addglob(char* name, int type, int stype,int endab)
 {
@@ -45,3 +44,4 @@ int addglob(char* name, int type, int stype,int endab)
     Gsym[y].endlabel = endab;
     return y;
 }
+

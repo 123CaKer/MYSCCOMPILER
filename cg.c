@@ -1,7 +1,6 @@
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
- 
 // 生成 x86-64 汇编代码
 static int freereg[4] = {0}; // 对应的4个寄存器的使用状况
 static char* reglist[4] = { "%r8", "%r9", "%r10", "%r11" };// 名

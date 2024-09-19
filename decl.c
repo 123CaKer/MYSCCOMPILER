@@ -3,31 +3,44 @@
 #include "decl.h"
 
  
-// 声明变量
-void var_declaration()
+// 声明变量 type 为变量类型 int char 。。。。
+void var_declaration(int type)
 {
-		int id, type;
-		type = parse_type(Token.token);// 解析当前类型
+	int id;
+	while (1)
+	{
 		//scan(&Token);
-		ident();
-		id = addglob(Text, type, S_VARIABLE,0);// 向符号表添加
-		genglobsym(id);// 生成全局符号（）
-		semi();
-	
+		id = addglob(Text, type, S_VARIABLE, 0);// 向符号表添加
+		genglobsym(id);// 生成全局符号
+      // 匹配下一个token
+		if (Token.token == T_SEMI)
+		{
+			scan(&Token);
+			return;
+		}
+		if (Token.token == T_COMMA)
+		{
+			scan(&Token);
+			ident();
+			continue;
+		}
+		fatal("Missing , or ; after identifier");
+	}	
 }
 
 
 // 声明函数 对应BNF参照笔记
-struct ASTnode* function_declaration()
+struct ASTnode* function_declaration(int type)
 {
 	struct ASTnode* tree,* finalstmt;
-	int nameslot,type,endlabel;
+	int nameslot,endlabel;
 	
 
-
+	/*
 	type = parse_type(Token.token);//获取当前函数声明类型 eg int add（）  为int
 	//scan(&Token);
 	ident();
+	*/
 	endlabel = genlabel();
 	nameslot = addglob(Text,type,S_FUNCTION,endlabel);
 	Functionid = nameslot;//当前函数下标
@@ -60,10 +73,10 @@ struct ASTnode* function_declaration()
 
 
 // 解析变量声明
-int parse_type(int t)
+int parse_type()
 {
 	int typer=-1;
-	switch (t)
+	switch (Token.token)
 	{
 	case T_CHAR:
 		typer= P_CHAR;
@@ -78,7 +91,7 @@ int parse_type(int t)
 		typer =P_LONG;
 		break;
 	default:
-		fatald("Illegal type, token", t);
+		fatald("Illegal type, token", Token.token);
 	}
 		
 	while (1)
@@ -93,5 +106,28 @@ int parse_type(int t)
 	
 }
 
-// 解析变量声明，将当前类型
+
+void global_declarations(void)
+{
+	struct ASTnode* tree;
+	int type;
+
+	while (1) 
+	{
+		type = parse_type();
+		ident();
+		if (Token.token == T_LPAREN) //如果是（ 则为函数
+		{
+			tree = function_declaration(type);
+			genAST(tree, NOREG, 0);
+		}
+		else // 变量
+		{
+			var_declaration(type);
+		}
+
+		if (Token.token == T_EOF)
+			break;
+	}
+}
 

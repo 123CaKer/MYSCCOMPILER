@@ -233,18 +233,17 @@ struct ASTnode* while_statement()
 
 struct ASTnode* single_statement() 
 {
+    int type;
     switch (Token.token)
     {
     case T_PRINT:
         return print_statement();
     case T_INT:
-        var_declaration();
-        return NULL;
     case T_CHAR:
-        var_declaration();
-        return NULL;
     case T_LONG:
-        var_declaration();
+        type = parse_type();
+        scan(&Token);
+        var_declaration(type);
         return NULL;
     case T_IDENT:
         return assignment_statement();
