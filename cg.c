@@ -218,6 +218,11 @@ int cgloadglob(int id)
 	case P_LONG:
 		fprintf(Outfile, "\tmovq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
 		break;
+	case P_CHARPTR:
+	case P_INTPTR:
+	case P_LONGPTR:
+		fprintf(Outfile, "\tmovq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
+		break;
 	default:
 		fatald("Bad type in cgloadglob:", Gsym[id].type);
 	}
@@ -238,6 +243,12 @@ int cgstorglob(int r, int id)
 	case P_LONG:
 		fprintf(Outfile, "\tmovq\t%s, %s(\%%rip)\n", reglist[r], Gsym[id].name);
 		break;
+	case P_CHARPTR:
+	case P_INTPTR:
+	case P_LONGPTR:
+		fprintf(Outfile, "\tmovq\t%s, %s(\%%rip)\n", reglist[r], Gsym[id].name);
+		break;
+
 	default:
 		fatald("Bad type in cgloadglob:", Gsym[id].type);
 		
@@ -339,7 +350,7 @@ int cgwiden(int r, int oldtype, int newtype)
 int cgprimsize(int type)
 {
 	// Check the type is valid
-	if (type < P_NONE || type > P_LONG)
+	if (type < P_NONE || type > P_LONGPTR)
 		fatal("Bad type in cgprimsize()");
 	return (psize[type]);
 }
@@ -355,7 +366,7 @@ int cgcall(int r, int id)
 	return (outr);
 }
 
-// Generate code to return a value from a function
+// 函数返回值
 void cgreturn(int reg, int id)
 {
 	// Generate code depending on the function's type
@@ -374,4 +385,29 @@ void cgreturn(int reg, int id)
 		fatald("Bad function type in cgreturn:", Gsym[id].type);
 	}
 	cgjump(Gsym[id].endlabel);
+}
+
+//生成地址 汇编
+int cgaddress(int id)
+{
+	int r = alloc_register();
+
+	fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", Gsym[id].name, reglist[r]);
+	return r;
+}
+
+// 间接寻址 汇编
+int cgderef(int r, int type)
+{
+	switch (type)
+	{
+	case P_CHARPTR:
+		fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r]);
+		break;
+	case P_INTPTR:
+	case P_LONGPTR:
+		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r]);
+		break;
+	}
+	return r;
 }

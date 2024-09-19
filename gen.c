@@ -9,6 +9,7 @@ int genlabel(void)
 }
  
 
+
 void genpreamble()
 {
     cgpreamble();

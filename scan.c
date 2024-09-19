@@ -167,7 +167,6 @@ int scan(struct token* t)
             break;
         }
         break;
-
     case '{':
         t->token = T_LBRACE;
         break;
@@ -179,6 +178,17 @@ int scan(struct token* t)
         break;
     case ')':
         t->token = T_RPAREN;
+        break;
+    case '&':
+        if ((c = next()) == '&')
+        {
+            t->token = T_LOGAND; //&&
+        }
+        else
+        {
+            putback(c);//»ØÍË
+            t->token = T_AMPER; //&p
+        }
         break;
 
 

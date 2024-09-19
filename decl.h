@@ -123,7 +123,7 @@ int type_compatible(int* left, int* right, int onlyright);
 
 // gen.c中的静态代码对应的是汇编中的 Label:
 //下标识
-static struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
+struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
 // static 每个文件
 static struct ASTnode* primary()
 {
@@ -352,6 +352,11 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
     case A_FUNCCALL:
         return (cgcall(leftreg, n->v.id));
+
+    case A_ADDR:
+        return (cgaddress(n->v.id));
+    case A_DEREF:
+        return (cgderef(leftreg, n->left->type));
 
     default:
         fatald("Unknown AST operator", n->op);

@@ -8,7 +8,7 @@ void var_declaration()
 {
 		int id, type;
 		type = parse_type(Token.token);// 解析当前类型
-		scan(&Token);
+		//scan(&Token);
 		ident();
 		id = addglob(Text, type, S_VARIABLE,0);// 向符号表添加
 		genglobsym(id);// 生成全局符号（）
@@ -26,7 +26,7 @@ struct ASTnode* function_declaration()
 
 
 	type = parse_type(Token.token);//获取当前函数声明类型 eg int add（）  为int
-	scan(&Token);
+	//scan(&Token);
 	ident();
 	endlabel = genlabel();
 	nameslot = addglob(Text,type,S_FUNCTION,endlabel);
@@ -62,15 +62,35 @@ struct ASTnode* function_declaration()
 // 解析变量声明
 int parse_type(int t)
 {
-	if (t == T_CHAR)
-		return P_CHAR;
-	if (t == T_INT)
-		return P_INT;
-	if (t == T_VOID)
-		return P_VOID;
-	if (t==T_LONG)
-		return P_LONG;
-	fatald("Illegal type, token", t);
+	int typer=-1;
+	switch (t)
+	{
+	case T_CHAR:
+		typer= P_CHAR;
+		break;
+	case T_INT:
+		typer= P_INT;
+		break;
+	case T_VOID:
+		typer= P_VOID;
+		break;
+	case T_LONG:
+		typer =P_LONG;
+		break;
+	default:
+		fatald("Illegal type, token", t);
+	}
+		
+	while (1)
+	{
+		scan(&Token);
+		if (Token.token==T_STAR)
+			typer = pointer_to(typer);
+		else
+			break;
+	}
+	return typer;
+	
 }
 
 // 解析变量声明，将当前类型

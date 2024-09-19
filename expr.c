@@ -2,7 +2,7 @@
 #include "data.h"
 #include "decl.h"
 #include <stdio.h>
-
+// AST 解析
 // 操作符优先级  
 static int OpPrec[] =
 {
@@ -11,6 +11,45 @@ static int OpPrec[] =
   30, 30,                       // T_EQ, T_NE
   40, 40, 40, 40                // T_LT, T_GT, T_LE, T_GE
 };
+
+// Parse a prefix expression and return 
+// a sub-tree representing it.
+/*
+   int *a;
+    x=&b;
+   */
+struct ASTnode* prefix()
+{
+    struct ASTnode* tree;
+    switch (Token.token)
+    {
+    case T_AMPER:  //& x=&b;
+        scan(&Token);
+        tree = prefix();
+
+        if (tree->op != A_IDENT)
+            fatal("& operator must be followed by an identifier");
+
+        // Now change the operator to A_ADDR and the type to
+        // a pointer to the original type
+        tree->op = A_ADDR; 
+        tree->type = pointer_to(tree->type);
+        break;
+    case T_STAR:
+        scan(&Token);
+        tree = prefix();
+        
+        // *p  ************p
+        if (tree->op != A_IDENT && tree->op != A_DEREF)//* operator must be followed by an identifier or *
+            fatal("* operator must be followed by an identifier or *");
+
+        tree = mkastunary(A_DEREF, value_at(tree->type), tree, 0);// 间接引用
+        break;
+    default:
+        tree = primary();
+    }
+    return tree;
+}
 
 //将 表达式符号转换为AST对应符号
 int arithop(int tokentype)
@@ -61,7 +100,7 @@ struct ASTnode* binexpr(int p)
     int lefttype, righttype;
     int tokentype;
     // 获取整数，并给到左 
-    left = primary();
+    left = prefix();
     
 
     /*
