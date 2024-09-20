@@ -357,7 +357,22 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
         return (cgaddress(n->v.id));
     case A_DEREF:
         return (cgderef(leftreg, n->left->type));
-
+    case A_SCALE:
+        // Small optimisation: use shift if the
+        // scale value is a known power of two
+        switch (n->v.size)
+        {
+        case 2: 
+             return(cgshlconst(leftreg, 1));
+        case 4: 
+            return(cgshlconst(leftreg, 2));
+        case 8:
+            return(cgshlconst(leftreg, 3));
+        default:  
+        // 分配数组int a[10]  int * 10
+            rightreg = cgloadint(n->v.size, P_INT);
+            return cgmul(leftreg, rightreg); //l = l * r;
+        }
     default:
         fatald("Unknown AST operator", n->op);
     }

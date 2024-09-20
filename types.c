@@ -87,5 +87,74 @@ int value_at(int type)
     default:
         fatald("Unrecognised in value_at: type", type);
     }
-    return (newtype);
+    return newtype;
+}
+
+//判断是否为 int 类的类型 是为1
+int inttype(int type)
+{
+    if (type == P_CHAR || type == P_INT || type == P_LONG)
+        return 1;
+    return 0;
+}
+
+//判断是否为指针类的类型 是为1
+int ptrtype(int type) 
+{
+    if (type == P_VOIDPTR || type == P_CHARPTR ||type == P_INTPTR || type == P_LONGPTR)
+        return 1;
+    return 0;
+}
+
+//当前的tree适配rtype op为当前tree操作符
+struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op) 
+{
+    int ltype;
+    int lsize, rsize;
+
+    ltype = tree->type;
+
+    // Compare scalar int types
+    if (inttype(ltype) && inttype(rtype)) 
+    {
+
+        // Both types same, nothing to do
+        if (ltype == rtype) 
+            return (tree);
+
+        // Get the sizes for each type
+        lsize = genprimsize(ltype);
+        rsize = genprimsize(rtype);
+
+        // Tree's size is too big
+        if (lsize > rsize)
+            return (NULL);
+
+        // Widen to the right
+        if (rsize > lsize) 
+            return (mkastunary(A_WIDEN, rtype, tree, 0));
+    }
+
+    // For pointers on the left
+    if (ptrtype(ltype))
+    {
+        // OK is same type on right and not doing a binary op
+        if (op == 0 && ltype == rtype) 
+            return (tree);
+    }
+
+    // We can scale only on A_ADD or A_SUBTRACT operation
+    if (op == A_ADD || op == A_SUBTRACT)
+    {
+
+        // Left is int type, right is pointer type and the size
+        // of the original type is >1: scale the left
+        if (inttype(ltype) && ptrtype(rtype))
+        {
+            rsize = genprimsize(value_at(rtype));// 获取大小解引用  int *a sizeof（*a）
+            if (rsize > 1)
+                return (mkastunary(A_SCALE, rtype, tree, rsize));//当前的rsize为联合体中的size
+        }
+    }
+    return NULL;
 }

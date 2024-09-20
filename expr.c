@@ -96,8 +96,9 @@ static int op_precedence(int tokentype)
 // 生成语法树 返回root为+ - * /的ast树  其中p为之前的优先级
 struct ASTnode* binexpr(int p) 
 {
-    struct ASTnode* n, * left, * right;
-    int lefttype, righttype;
+    struct ASTnode* left, * right;
+    struct ASTnode* ltemp, * rtemp;
+    int ASTop;
     int tokentype;
     // 获取整数，并给到左 
     left = prefix();
@@ -123,11 +124,15 @@ struct ASTnode* binexpr(int p)
         */
         return left;
 
+
+   
+    tokentype = Token.token;
+
     while (op_precedence(Token.token)>p)
     {
-
         // 将 表达式符号转换为AST对应符号 （高优先级）
-        tokentype = arithop(Token.token);
+     //   tokentype = arithop(Token.token);
+
 
         //设置当前Token类型
         scan(&Token);
@@ -135,23 +140,35 @@ struct ASTnode* binexpr(int p)
         // 右递归调用生成右子树
         right = binexpr(OpPrec[tokentype]);
 
-        lefttype = left->type;
-        righttype = right->type;
-        if (type_compatible(&(lefttype), &(righttype), 0)==0)
-            fatal("Incompatible types");
 
+       // 左右子树适配
 
-        // 将类型改为宽适配，小类型适配大类型 即生成A_WIDEN节点
-        if (lefttype)//char 和 int 小的改为 A_WIDEN 另一个为0
-            left = mkastunary(lefttype, right->type, left, 0);
-        if (righttype)
-            right = mkastunary(righttype, left->type, right, 0);
+        /*
+                +
+              /   \           在进行判断时需要适配当前为右适配左
+          int 2   char 5  
+        
+                +
+              /   \           在进行判断时需要适配当前为左适配右
+          char 2   int 5
 
-        // 生成ast节点
+          但是在实际情况中，较为复杂 故需要做到两次匹配
+        */
+        ASTop = arithop(tokentype);
+        ltemp = modify_type(left, right->type, tokentype);  // 左适配右
+        rtemp = modify_type(right, left->type, tokentype);  // 右适配左
+        if (ltemp == NULL && rtemp == NULL)
+            fatal("Incompatible types in binary expression");
+        if (ltemp != NULL)
+            left = ltemp;
+        if (rtemp != NULL)
+            right = rtemp;
+        
+        // 生成ast节点 保证一致
         left = mkastnode(arithop(tokentype), left->type, left, NULL, right, 0);
         
 
-        tokentype = Token.token;  // 更新 token
+        tokentype = Token.token;  // 更新 token类型
         if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN)// 匹配)
             return left;
     }
@@ -159,7 +176,7 @@ struct ASTnode* binexpr(int p)
     return left; //返回创建
 } 
 
-struct ASTnode* funccall(void)
+struct ASTnode* funccall()
 {
     struct ASTnode* tree;
     int id;

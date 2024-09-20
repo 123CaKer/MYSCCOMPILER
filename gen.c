@@ -31,7 +31,7 @@ void genglobsym(int id)
 {
     cgglobsym(id);
 }
-
+// 获取大小
 int genprimsize(int type) 
 {
     return (cgprimsize(type));

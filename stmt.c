@@ -41,7 +41,8 @@ struct ASTnode* assignment_statement()
     int lefttype;
     int righttype;
     int id;
-    
+    int rtype; // 右类型
+
     ident(); // 匹配标识符
      
     if (Token.token == T_LPAREN)  //函数调用 下面正常执行
@@ -62,16 +63,10 @@ struct ASTnode* assignment_statement()
  
     // 生成ast
     left = binexpr(0);
-
-    lefttype = left->type;
-    righttype = right->type;
-    if (!type_compatible(&lefttype, &righttype, 1))  
-        fatal("Incompatible types");
-
-    if (lefttype==A_WIDEN)
-    {
-        left = mkastunary(lefttype,right->type,left,0);// 节点类型扩充为 右节点类型
-    }
+    rtype = right->type;
+    left=  modify_type(left,rtype,0);//assign
+    if (left==NULL)
+        fatal("Incompatible expression in assignment");
 
     /*
         A_WIDEN   -----intvalue = 0
@@ -99,15 +94,11 @@ struct ASTnode* print_statement()
     //匹配第一个为print
     match(T_PRINT, "print");
     // 生成计算型AST
-    n = binexpr(0);
+    n = binexpr(0);  
+    n= modify_type(n,P_INT,0);
+    if (n == NULL)
+        fatal("Incompatible expression in print");
 
-    lefttype = P_INT;
-    righttype = n->type;
-    if (!type_compatible(&lefttype, &righttype, 0)) //c此处并没有left树 仅为匹配函数type_compatible
-        fatal("Incompatible types");
-
-    if (righttype==A_WIDEN)
-        n = mkastunary(righttype, P_INT, n, 0);
 
     // 生成
     n = mkastunary(A_PRINT, P_NONE, n, 0);
@@ -217,11 +208,11 @@ struct ASTnode* while_statement()
      tree = binexpr(0);
      functype = Gsym[Functionid].type;
      returntype = tree->type;
-     if (type_compatible(&returntype, &functype,1)==0)
-         fatal("Incompatible types");
-
-     if (returntype==A_WIDEN)
-         tree = mkastunary(returntype, functype, tree, 0);
+     tree = modify_type(tree,returntype,A_ASSIGN);
+     if (tree==NULL)
+     {
+         fatal("Incompatible expression in return");
+     }
 
      rparen();
 

@@ -26,7 +26,7 @@ enum
   A_INTLIT,
   A_IDENT, A_LVIDENT, A_ASSIGN, A_PRINT, A_GLUE,
   A_IF, A_WHILE, A_FUNCTION, A_WIDEN, A_RETURN,
-  A_FUNCCALL, A_ADDR, A_DEREF
+  A_FUNCCALL, A_ADDR, A_DEREF, A_SCALE
 };
 
 // 变量类型
@@ -71,7 +71,8 @@ struct ASTnode
 	union
 	{
 		int intvalue;                         //整形数字
-		int id;                     // For A_IDENT, the symbol slot number
+		int id;                     // For A_IDENT, 符号表下标
+		int size;           
 	}v;
 	
 };

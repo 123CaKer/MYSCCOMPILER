@@ -410,3 +410,10 @@ int cgderef(int r, int type)
 	}
 	return r;
 }
+
+// 将当前寄存器值左移动 *2
+int cgshlconst(int r, int val) 
+{
+	fprintf(Outfile, "\tsalq\t$%d, %s\n", val, reglist[r]);
+	return(r);
+}
