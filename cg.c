@@ -401,19 +401,21 @@ int cgaddress(int id)
 	return r;
 }
 
-// 间接寻址 汇编 // 这里有问题
+// 间接寻址 汇编 // 这里有问题  在间接引用中 我使用的是如下代码 与 acwj略有不同
+// 地址在间接引用时考虑到了（具体机器）原因 可能导致地址无法进行使用
+
 #if 0
 #endif // 0
 
 int cgderef(int r, int type)
 {
-	switch (type)
-	{
+	switch (type)  
+	{///// 后边均为 r+1
 	case P_CHARPTR:
 		fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r+1]);
 		break;
 	case P_INTPTR:
-		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]);
+		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]); 
 		break;
 	case P_LONGPTR:
 		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]);
