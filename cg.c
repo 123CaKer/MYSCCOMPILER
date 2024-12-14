@@ -2,13 +2,13 @@
 #include "data.h"
 #include "decl.h"
 // 生成 x86-64 汇编代码
-static int freereg[4] = {0}; // 对应的4个寄存器的使用状况
+static int freereg[4] = { 0 }; // 对应的4个寄存器的使用状况
 static char* reglist[4] = { "%r8", "%r9", "%r10", "%r11" };// 名
 static char* breglist[4] = { "%r8b", "%r9b", "%r10b", "%r11b" }; // b代表 32位 r8寄存器低8位
 static char* dreglist[4] = { "%r8d", "%r9d", "%r10d", "%r11d" };// d代表 64位 r8寄存器低8位
 
 // 0 means no size. P_NONE, P_VOID, P_CHAR, P_INT, P_LONG
-static int psize[] = { 0,       0,      1,     4,     8 };
+static int psize[] = { 0, 0, 1, 4, 8, 8, 8, 8, 8 };
 
 // 空闲为1 释放所有寄存器
 void freeall_registers(void)
@@ -28,14 +28,15 @@ static int alloc_register(void)
 			return i;
 		}
 	}
-	fprintf(stderr, "Out of registers!\n");
-	exit(1);
+	//fprintf(stderr, "Out of registers!\n");
+	fatal("Out of registers");
+	return (NOREG);
 }
 
 // 释放寄存器编号为 reg
 static void free_register(int reg)
 {
-	if (freereg[reg] != 0) 
+	if (freereg[reg] != 0)
 	{
 		fprintf(stderr, "Error trying to free register %d\n", reg);
 		exit(1);
@@ -73,48 +74,49 @@ void cgpreamble()
 		"\tmovq	%rsp, %rbp\n",
 		Outfile);
 		*/
-	/*fputs("\t.text\n"
-		".LC0:\n"
-		"\t.string\t\"%d\\n\"\n"
-		"printint:\n"
-		"\tpushq\t%rbp\n"
-		"\tmovq\t%rsp, %rbp\n"
-		"\tsubq\t$16, %rsp\n"
-		"\tmovl\t%edi, -4(%rbp)\n"
-		"\tmovl\t-4(%rbp), %eax\n"
-		"\tmovl\t%eax, %esi\n"
-		"\tleaq	.LC0(%rip), %rdi\n"
-		"\tmovl	$0, %eax\n"
-		"\tcall	printf@PLT\n" "\tnop\n" "\tleave\n" "\tret\n" "\n", Outfile);
-		*/
+		/*fputs("\t.text\n"
+			".LC0:\n"
+			"\t.string\t\"%d\\n\"\n"
+			"printint:\n"
+			"\tpushq\t%rbp\n"
+			"\tmovq\t%rsp, %rbp\n"
+			"\tsubq\t$16, %rsp\n"
+			"\tmovl\t%edi, -4(%rbp)\n"
+			"\tmovl\t-4(%rbpcgfuncpreamble %eax\n"
+			"\tmovl\t%eax, %esi\n"
+			"\tleaq	.LC0(%rip), %rdi\n"
+			"\tmovl	$0, %eax\n"
+			"\tcall	printf@PLT\n" "\tnop\n" "\tleave\n" "\tret\n" "\n", Outfile);
+			*/
 	fputs("\t.text\n", Outfile);
 
 	/*
-	    使用外部库fputs("\t.text\n", Outfile);
+		使用外部库fputs("\t.text\n", Outfile);
 		不用外部库时使用第二段
-	
+
 	*/
 }
 
 // 输出 assembly postamble
 void cgpostamble()
 {
-	fputs(
+	/*fputs(
 		"\tmovl	$0, %eax\n"
 		"\tpopq	%rbp\n"
 		"\tret\n",
-		Outfile);
+		Outfile);*/
 }
 
 // 整型变量加载到寄存器中
-int cgloadint(int value)
+int cgloadint(int value, int type)
 {
+	// Get a new register
 	int r = alloc_register();
 
-	// Print out the code to initialise it
 	fprintf(Outfile, "\tmovq\t$%d, %s\n", value, reglist[r]);
-	return(r);
+	return (r);
 }
+
 
 // 加减乘除
 int cgadd(int r1, int r2)
@@ -154,7 +156,7 @@ int cgdiv(int r1, int r2)
 
 // 比较判断
 
-static int cgcompare(int r1, int r2, char* how) 
+static int cgcompare(int r1, int r2, char* how)
 {
 	fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]); //  r1=r1-r2
 	fprintf(Outfile, "\t%s\t%s\n", how, breglist[r2]);
@@ -164,7 +166,7 @@ static int cgcompare(int r1, int r2, char* how)
 }
 
 
-int cgequal(int r1, int r2) 
+int cgequal(int r1, int r2)
 {
 	return(cgcompare(r1, r2, "sete"));
 }
@@ -176,7 +178,7 @@ int cglessthan(int r1, int r2)
 {
 	return(cgcompare(r1, r2, "setl"));
 }
-int cggreaterthan(int r1, int r2) 
+int cggreaterthan(int r1, int r2)
 {
 	return(cgcompare(r1, r2, "setg"));
 }
@@ -184,30 +186,29 @@ int cglessequal(int r1, int r2)
 {
 	return(cgcompare(r1, r2, "setle"));
 }
-int cggreaterequal(int r1, int r2) 
+int cggreaterequal(int r1, int r2)
 {
-	return(cgcompare(r1, r2, "setge")); 
+	return(cgcompare(r1, r2, "setge"));
 }
 
 
 
-//将寄存器中的值打印出
-void cgprintint(int r) 
+//将寄存器中的值打印出 
+void cgprintint(int r)
 {
 	fprintf(Outfile, "\tmovq\t%s, %%rdi\n", reglist[r]);
 	fprintf(Outfile, "\tcall\tprintint\n");
 	free_register(r);
 }
 // 从符号表中取得符号并实现mov到 rip寄存器
-int cgloadglob(int id) 
+int cgloadglob(int id)
 {
 	int r = alloc_register();
 
-	// Print out the code to initialise it
 	switch (Gsym[id].type)
 	{
 	case P_CHAR:
-		fprintf(Outfile, "\tmovzbq\t%s(\%%rip), %s\n", Gsym[id].name,
+		fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", Gsym[id].name,
 			reglist[r]);
 		break;
 	case P_INT:
@@ -215,8 +216,6 @@ int cgloadglob(int id)
 			reglist[r]);
 		break;
 	case P_LONG:
-		fprintf(Outfile, "\tmovq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
-		break;
 	case P_CHARPTR:
 	case P_INTPTR:
 	case P_LONGPTR:
@@ -229,15 +228,15 @@ int cgloadglob(int id)
 }
 
 // Store a register's value into a variable
-int cgstorglob(int r, int id) 
+int cgstorglob(int r, int id)
 {
 	switch (Gsym[id].type)
 	{
 	case P_CHAR:
-		fprintf(Outfile, "\tmovb\t%s, %s(\%%rip)\n", breglist[r],Gsym[id].name);
+		fprintf(Outfile, "\tmovb\t%s, %s(\%%rip)\n", breglist[r], Gsym[id].name);
 		break;
 	case P_INT:
-		fprintf(Outfile, "\tmovl\t%s, %s(\%%rip)\n", dreglist[r],Gsym[id].name);
+		fprintf(Outfile, "\tmovl\t%s, %s(\%%rip)\n", dreglist[r], Gsym[id].name);
 		break;
 	case P_LONG:
 		fprintf(Outfile, "\tmovq\t%s, %s(\%%rip)\n", reglist[r], Gsym[id].name);
@@ -249,8 +248,8 @@ int cgstorglob(int r, int id)
 		break;
 
 	default:
-		fatald("Bad type in cgloadglob:", Gsym[id].type);
-		
+		fatald("Bad type in cgstoreglob:", Gsym[id].type);
+
 	}
 	return r;
 }
@@ -258,12 +257,19 @@ int cgstorglob(int r, int id)
 //生成全局符号
 void cgglobsym(int id)
 {
-		int typesize;
-		typesize = cgprimsize(Gsym[id].type); // 获取大小
-		fprintf(Outfile, "\t.comm\t%s,%d,%d\n", Gsym[id].name, typesize, typesize);
-	
+	int typesize;
+	// Get the size of the type
+	typesize = cgprimsize(Gsym[id].type); // get size 
 
-	
+	fprintf(Outfile, "\t.data\n" "\t.globl\t%s\n", Gsym[id].name);
+	switch (typesize)
+	{
+	case 1: fprintf(Outfile, "%s:\t.byte\t0\n", Gsym[id].name); break;
+	case 4: fprintf(Outfile, "%s:\t.long\t0\n", Gsym[id].name); break;
+	case 8: fprintf(Outfile, "%s:\t.quad\t0\n", Gsym[id].name); break;
+	default: fatald("Unknown typesize in cgglobsym: ", typesize);
+	}
+
 }
 // List of comparison instructions,
 // in AST order: A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE
@@ -285,7 +291,7 @@ int cgcompare_and_set(int ASTop, int r1, int r2)
 }
 
 // 生成标签
-void cglabel(int l) 
+void cglabel(int l)
 {
 	fprintf(Outfile, "L%d:\n", l);
 }
@@ -354,7 +360,7 @@ int cgprimsize(int type)
 	return (psize[type]);
 }
 
-int cgcall(int r, int id) 
+int cgcall(int r, int id)
 {
 	// Get a new register
 	int outr = alloc_register();
@@ -395,25 +401,54 @@ int cgaddress(int id)
 	return r;
 }
 
-// 间接寻址 汇编
+// 间接寻址 汇编 // 这里有问题
+#if 0
+#endif // 0
+
 int cgderef(int r, int type)
 {
 	switch (type)
 	{
 	case P_CHARPTR:
-		fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r]);
+		fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r+1]);
 		break;
 	case P_INTPTR:
-	case P_LONGPTR:
-		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r]);
+		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]);
 		break;
+	case P_LONGPTR:
+		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]);
+		break;
+	default:
+		fatald("Can't cgderef on type:", type);
 	}
-	return r;
+	return (r);
 }
 
 // 将当前寄存器值左移动 *2
-int cgshlconst(int r, int val) 
+int cgshlconst(int r, int val)
 {
 	fprintf(Outfile, "\tsalq\t$%d, %s\n", val, reglist[r]);
 	return(r);
+}
+
+
+
+// Store through a dereferenced pointer
+int cgstorderef(int r1, int r2, int type)
+{
+	switch (type)
+	{
+	case P_CHAR:
+		fprintf(Outfile, "\tmovb\t%s, (%s)\n", breglist[r1], reglist[r2]);
+		break;
+	case P_INT:
+		fprintf(Outfile, "\tmovq\t%s, (%s)\n", reglist[r1], reglist[r2]);
+		break;
+	case P_LONG:
+		fprintf(Outfile, "\tmovq\t%s, (%s)\n", reglist[r1], reglist[r2]);
+		break;
+	default:
+		fatald("Can't cgstoderef on type:", type);
+	}
+	return (r1);
 }

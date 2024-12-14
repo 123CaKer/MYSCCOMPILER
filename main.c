@@ -8,11 +8,13 @@
 #include<string.h>
 #include <errno.h>
 #define _ZZJSTART main
- 
+
 static void init()// 初始化全局变量 
 {
     Line = 1;
     Putback = '\n';
+    //  Globs = 0;
+    O_dumpAST = 0;
 }
 // 令牌清单
 char* tokstr[] = { "+", "-", "*", "/", "intlit" };
@@ -22,7 +24,7 @@ static void scanfile()
 {
     struct token T;
 
-    while (scan(&T)) 
+    while (scan(&T))
     {
         printf("Token is %s", tokstr[T.token]);
         if (T.token == T_INTLIT)
@@ -31,7 +33,7 @@ static void scanfile()
     }
 }
 
-void doer(char *p,char * q) // p为输入文件，q为输出文件 
+void doer(char* p, char* q) // p为输入文件，q为输出文件 
 {
     struct token* tree;
     init();
@@ -43,7 +45,7 @@ void doer(char *p,char * q) // p为输入文件，q为输出文件
 
     }
 
-    
+
     if ((Outfile = fopen(q, "w")) == NULL)  // 输出文件
     {
         fprintf(stderr, "Unable to create file of ****.s: %s\n", strerror(errno));
@@ -59,8 +61,8 @@ void doer(char *p,char * q) // p为输入文件，q为输出文件
     global_declarations();
     genpostamble(); // 输出 postable
     fclose(Outfile);
-    fclose(Infile); 
-   
+    fclose(Infile);
+
     exit(0);
 }
 
@@ -68,6 +70,6 @@ int _ZZJSTART()
 {
     char* p = NULL;
     p = "..//needcompilefile/hello.c"; // 此处用于之后的编译器可视化
-    char* myoutpath= "..//needcompilefile/hello.s";// 生成.s
-    doer(p,myoutpath);
+    char* myoutpath = "..//needcompilefile/hello.s";// 生成.s
+    doer(p, myoutpath);
 }

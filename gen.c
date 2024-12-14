@@ -1,4 +1,4 @@
-#include "defs.h"
+ï»¿#include "defs.h"
 #include "data.h"
 #include "decl.h"
 
@@ -7,7 +7,7 @@ int genlabel(void)
     static int id = 1;
     return (id++);
 }
- 
+
 
 
 void genpreamble()
@@ -22,17 +22,17 @@ void genfreeregs()
 {
     freeall_registers();
 }
-void genprintint(int reg) 
+void genprintint(int reg)
 {
     cgprintint(reg);
 }
 
-void genglobsym(int id) 
+void genglobsym(int id)
 {
     cgglobsym(id);
 }
-// »ñÈ¡´óĞ¡
-int genprimsize(int type) 
+// è·å–å¤§å°
+int genprimsize(int type)
 {
     return (cgprimsize(type));
 }

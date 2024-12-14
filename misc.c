@@ -1,11 +1,11 @@
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
- 
+
 // 匹配关键字 在匹配的时候会获取下一个字符并进行全局token赋值
-void match(int t, char* what) 
+void match(int t, char* what)
 {
-    if (Token.token == t) 
+    if (Token.token == t)
         scan(&Token);
     else
     {
@@ -22,7 +22,7 @@ void semi(void)
 // 匹配关键字为标识符
 void ident(void)
 {
-    match(T_IDENT, "identifier"); 
+    match(T_IDENT, "identifier");
 }
 
 
@@ -49,13 +49,13 @@ void rparen(void) {
 // 错误信息
 void fatal(char* s)
 {
-    fprintf(stderr, "%s on line %d\n", s, Line); 
+    fprintf(stderr, "%s on line %d\n", s, Line);
     exit(1);
 }
 
 void fatals(char* s1, char* s2)
 {
-    fprintf(stderr, "%s:%s on line %d\n", s1, s2, Line); 
+    fprintf(stderr, "%s:%s on line %d\n", s1, s2, Line);
     exit(1);
 }
 
@@ -67,6 +67,6 @@ void fatald(char* s, int d)
 
 void fatalc(char* s, int c)
 {
-    fprintf(stderr, "%s:%c on line %d\n", s, c, Line); 
+    fprintf(stderr, "%s:%c on line %d\n", s, c, Line);
     exit(1);
 }

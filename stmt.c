@@ -32,9 +32,11 @@
 /*
       A_GLUE
      /      \
-  A_IF      ......    
+  A_IF      ......
 
 */
+
+#if 0
 struct ASTnode* assignment_statement()
 {
     struct ASTnode* left, * right, * tree;
@@ -44,11 +46,11 @@ struct ASTnode* assignment_statement()
     int rtype; // 右类型
 
     ident(); // 匹配标识符
-     
+
     if (Token.token == T_LPAREN)  //函数调用 下面正常执行
         return funccall();
 
-   // reject_token(&Token);
+    // reject_token(&Token);
 
     id = findglob(Text);  // 返回标识符在符号表下标
     if (id == -1)
@@ -56,16 +58,16 @@ struct ASTnode* assignment_statement()
         fatals("Undeclared variable", Text);
     }
 
-    right = mkastleaf(A_LVIDENT,Gsym[id].type, id);  //s生成右边赋值
+    right = mkastleaf(A_LVIDENT, Gsym[id].type, id);  //s生成右边赋值
 
     // 匹配等号 =
     match(T_ASSIGN, "=");
- 
+
     // 生成ast
     left = binexpr(0);
     rtype = right->type;
-    left=  modify_type(left,rtype,0);//assign
-    if (left==NULL)
+    left = modify_type(left, rtype, 0);//assign
+    if (left == NULL)
         fatal("Incompatible expression in assignment");
 
     /*
@@ -73,16 +75,13 @@ struct ASTnode* assignment_statement()
        /       \           right =left
     left       right
     */
-   
+
     // 生成赋值ast
-    tree = mkastnode(A_ASSIGN, P_INT, left, NULL,right, 0);// 强制转型为P_INT 最大
+    tree = mkastnode(A_ASSIGN, P_INT, left, NULL, right, 0);// 强制转型为P_INT 最大
 //    genfreeregs();
    // semi();
     return tree;
 }
-
- 
-
 
 struct ASTnode* print_statement()
 {
@@ -94,24 +93,27 @@ struct ASTnode* print_statement()
     //匹配第一个为print
     match(T_PRINT, "print");
     // 生成计算型AST
-    n = binexpr(0);  
-    n= modify_type(n,P_INT,0);
+    n = binexpr(0);
+    n = modify_type(n, P_INT, 0);
     if (n == NULL)
         fatal("Incompatible expression in print");
 
 
     // 生成
     n = mkastunary(A_PRINT, P_NONE, n, 0);
-  
+
     genfreeregs();
     //semi();  
     return n;
 
 }
+#endif // 0
 
 
 
-struct ASTnode *  if_statement() 
+
+
+struct ASTnode* if_statement()
 {
 
     struct ASTnode* condAST, * trueAST, * falseAST = NULL;
@@ -129,7 +131,7 @@ struct ASTnode *  if_statement()
 
     rparen();// 匹配 )
 
-    
+
     trueAST = compound_statement(); // 获取条件语句
     // If we have an 'else', skip it
     // and get the AST for the compound statement
@@ -140,16 +142,16 @@ struct ASTnode *  if_statement()
     }
 
     // 生成AST节点
-    return mkastnode(A_IF,P_NONE ,condAST, trueAST, falseAST, 0);
+    return mkastnode(A_IF, P_NONE, condAST, trueAST, falseAST, 0);
 }
 
 
 struct ASTnode* while_statement()
 {
-    struct ASTnode* condAST=NULL;
+    struct ASTnode* condAST = NULL;
     struct ASTnode* bodyAST = NULL;
     struct ASTnode* ASTn = NULL;
-   
+
     match(T_WHILE, "while"); // 匹配while 关键字
     lparen();// 匹配 （
 
@@ -161,12 +163,12 @@ struct ASTnode* while_statement()
     rparen();// 匹配 )
 
     bodyAST = compound_statement();// {  ... }
-    ASTn = mkastnode(A_WHILE,P_NONE,condAST,NULL,bodyAST,0);
+    ASTn = mkastnode(A_WHILE, P_NONE, condAST, NULL, bodyAST, 0);
     return ASTn;
 
 }
 
- struct ASTnode* for_statement()
+struct ASTnode* for_statement()
 {
     struct ASTnode* condAST, * bodyAST;
     struct ASTnode* preopAST, * postopAST;
@@ -187,48 +189,50 @@ struct ASTnode* while_statement()
 
     bodyAST = compound_statement(); // 分号当前不处理
 
-   
-    tree = mkastnode(A_GLUE, P_NONE,  bodyAST, NULL, postopAST, 0);
+
+    tree = mkastnode(A_GLUE, P_NONE, bodyAST, NULL, postopAST, 0);
     tree = mkastnode(A_WHILE, P_NONE, condAST, NULL, tree, 0);
-    return mkastnode(A_GLUE,  P_NONE, preopAST, NULL, tree, 0);
+    return mkastnode(A_GLUE, P_NONE, preopAST, NULL, tree, 0);
 }
 
- static struct ASTnode* return_statement()
- {
-     struct ASTnode* tree;
-     int returntype;
-     int  functype;
+static struct ASTnode* return_statement()
+{
+    struct ASTnode* tree;
+    int returntype;
+    int  functype;
 
-     if (Gsym[Functionid].type == P_VOID)
-         fatal("Can't return from a void function");
+    if (Gsym[Functionid].type == P_VOID)
+        fatal("Can't return from a void function");
 
-     match(T_RETURN,"return");
-     lparen();
+    match(T_RETURN, "return");
+    lparen();
 
-     tree = binexpr(0);
-     functype = Gsym[Functionid].type;
-     returntype = tree->type;
-     tree = modify_type(tree,returntype,A_ASSIGN);
-     if (tree==NULL)
-     {
-         fatal("Incompatible expression in return");
-     }
+    tree = binexpr(0);
+    functype = Gsym[Functionid].type;
+    // returntype = tree->type;
+    tree = modify_type(tree, functype, 0);
+    if (tree == NULL)
+    {
+        fatal("Incompatible expression in return");
+    }
 
-     rparen();
+    rparen();
 
 
-     // 最终生成A_RETURN
-     tree = mkastunary(A_RETURN, functype, tree, 0);
-     return tree;
- }
+    // 最终生成A_RETURN
+    tree = mkastunary(A_RETURN, P_NONE, tree, 0);
+    return tree;
+}
 
-struct ASTnode* single_statement() 
+struct ASTnode* single_statement()
 {
     int type;
     switch (Token.token)
     {
+        /*
     case T_PRINT:
         return print_statement();
+        */
     case T_INT:
     case T_CHAR:
     case T_LONG:
@@ -236,8 +240,12 @@ struct ASTnode* single_statement()
         scan(&Token);
         var_declaration(type);
         return NULL;
-    case T_IDENT:
-        return assignment_statement();
+
+        /*
+        case T_IDENT:
+            return assignment_statement();
+            */
+
     case T_IF:
         return if_statement();
     case T_WHILE:
@@ -247,13 +255,13 @@ struct ASTnode* single_statement()
     case T_RETURN:
         return return_statement();
     default:
-        fatald("Syntax error, token", Token.token);
+        return binexpr(0);
     }
 }
 
 
 
-// 解析多个语句 （BNF）
+// 解析多个语句 （BNF）语句块
 struct ASTnode* compound_statement()
 {
     struct ASTnode* left = NULL;
@@ -261,23 +269,23 @@ struct ASTnode* compound_statement()
 
 
     lbrace(); // 匹配左大括号
-    while (1) 
+    while (1)
     {
-   
+
         tree = single_statement();
 
-       
-        if (tree != NULL && (tree->op == A_PRINT || tree->op == A_ASSIGN|| tree->op==A_RETURN || tree->op == A_FUNCCALL))
+
+        if (tree != NULL && (tree->op == A_ASSIGN || tree->op == A_RETURN || tree->op == A_FUNCCALL))
             semi();
 
-        if (tree != NULL) 
+        if (tree != NULL)
         {
             if (left == NULL)
                 left = tree;
             else
                 left = mkastnode(A_GLUE, P_NONE, left, NULL, tree, 0);
         }
-       
+
         if (Token.token == T_RBRACE)
         {
             rbrace();

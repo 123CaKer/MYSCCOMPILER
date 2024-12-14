@@ -1,7 +1,7 @@
 #pragma once
 #include"defs.h"
 #include<stdlib.h>
- 
+
 
 // misc.c
 void semi(void);
@@ -116,7 +116,7 @@ struct ASTnode* while_statement();
 // sym.c
 int findglob(char* s);
 int newglob(void);
-int addglob(char* name, int type, int stype,int endlabel);
+int addglob(char* name, int type, int stype, int endlabel);
 
 // types.c
 int type_compatible(int* left, int* right, int onlyright);
@@ -141,15 +141,21 @@ static struct ASTnode* primary()
         break;
 
     case T_IDENT:
+        scan(&Token);
+
+        // It's a '(', so a function call
+        if (Token.token == T_LPAREN)
+            return (funccall());
+
+        // Not a function call, so reject the new token
+        reject_token(&Token);
+
+        // Check that the variable exists. XXX Add structural type test
         id = findglob(Text);
         if (id == -1)
             fatals("Unknown variable", Text);
-        scan(&Token);
-        if (Token.token == T_LPAREN)
-            return funccall();
-        reject_token(&Token);
 
-
+        // Make a leaf AST node for it
         n = mkastleaf(A_IDENT, Gsym[id].type, id);
         break;
     default:
@@ -187,7 +193,7 @@ static int genIFAST(struct ASTnode* n)
     genfreeregs();
 
     //  否则真分支 
-    genAST(n->mid, NOREG, n->op);
+    genAST(n->mid, NOLABEL, n->op);
     genfreeregs();
 
 
@@ -200,7 +206,7 @@ static int genIFAST(struct ASTnode* n)
     //若假存在 生成假分支语句 并跳转
     if (n->right)
     {
-        genAST(n->right, NOREG, n->op);
+        genAST(n->right, NOLABEL, n->op);
         genfreeregs();
         cglabel(Lend);
     }
@@ -223,7 +229,7 @@ static int genWHILE(struct ASTnode* n)
     genAST(n->left, Lend, n->op);
     genfreeregs();
 
-    genAST(n->right, NOREG, n->op);
+    genAST(n->right, NOLABEL, n->op);
     genfreeregs();
 
     cgjump(Lstart);
@@ -236,14 +242,12 @@ static int genWHILE(struct ASTnode* n)
 }
 
 
-// interpretAST的汇编接口版本
+// interpretAST的汇编接口版本  后序
 static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用寄存器对应下标
 {
     int  leftreg;
-    int  midreg;
+    //  int  midreg;
     int  rightreg;
-
-
 
     // We now have specific AST node handling at the top
     switch (n->op)//此处填写语句类型 if fun 。。。
@@ -255,25 +259,25 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     case A_GLUE:
         // Do each child statement, and free the
         // registers after each child
-        genAST(n->left, NOREG, n->op);
+        genAST(n->left, NOLABEL, n->op);
         genfreeregs();
-        genAST(n->right, NOREG, n->op);
+        genAST(n->right, NOLABEL, n->op);
         genfreeregs();
         return NOREG;
 
 
     case A_FUNCTION:
         cgfuncpreamble(n->v.id);  // 类似之前的cgpreamble生成函数前置码
-        genAST(n->left, NOREG, n->op);
+        genAST(n->left, NOLABEL, n->op);
         cgfuncpostamble(n->v.id); // 类似之前的cgpostamble生成函数前置码
         return NOREG;
 
     }
 
     if (n->left)
-        leftreg = genAST(n->left, NOREG, n->op);
+        leftreg = genAST(n->left, NOLABEL, n->op);
     if (n->right)
-        rightreg = genAST(n->right, leftreg, n->op);
+        rightreg = genAST(n->right, NOLABEL, n->op);
 
     switch (n->op)
     {
@@ -286,13 +290,24 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     case A_DIVIDE:
         return cgdiv(leftreg, rightreg);
     case A_INTLIT:
-        return cgloadint(n->v.intvalue); // 返回分配的寄存器下标号
+        return (cgloadint(n->v.intvalue, n->type)); // 返回分配的寄存器下标号
     case A_IDENT:
-        return cgloadglob(n->v.id);
+        /*
+               A_DEREF
+               /   \        *p间接寻址
+               p    *
+        为右值或者间接寻址
+        */
+        if (n->rvalue || parentASTop == A_DEREF)
+            return (cgloadglob(n->v.id));
+        else
+            return NOREG;
+
+        /*
     case A_LVIDENT:
         // printf(" the reg is %d\n",reg);
         return cgstorglob(reg, n->v.id);
-
+        */
         // 比较判断 传入的值为左右寄存器编号
     case A_EQ:
         if (parentASTop == A_IF || parentASTop == A_WHILE)
@@ -327,8 +342,16 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
 
     case A_ASSIGN:
-        // 当前表达式已经执行完成，需要返回
-        return rightreg; // 返回寄存器结果下标值
+        switch (n->right->op)
+        {
+        case A_IDENT:// 赋值变量
+            return cgstorglob(leftreg, n->right->v.id);
+        case A_DEREF: // 间接
+            return cgstorderef(leftreg, rightreg, n->right->type);
+        default:
+            fatald("Can't A_ASSIGN in genAST(), op", n->op);
+        }
+#if 0
     case A_PRINT:
         genprintint(leftreg); // 打印左寄存器所存值
         /*
@@ -341,7 +364,7 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
 
         genfreeregs();
         return NOREG;
-
+#endif    
     case A_WIDEN:
         // Widen the child's type to the parent's type
         return (cgwiden(leftreg, n->left->type, n->type));
@@ -356,24 +379,32 @@ static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用
     case A_ADDR:
         return (cgaddress(n->v.id));
     case A_DEREF:
-        return (cgderef(leftreg, n->left->type));
+
+        //  return (cgderef(leftreg, n->left->type));
+
+        if (n->rvalue)
+            return cgderef(leftreg, n->left->type);
+        else
+            return (leftreg);
+
     case A_SCALE:
         // Small optimisation: use shift if the
         // scale value is a known power of two
         switch (n->v.size)
         {
-        case 2: 
-             return(cgshlconst(leftreg, 1));
-        case 4: 
+        case 2:
+            return(cgshlconst(leftreg, 1));
+        case 4:
             return(cgshlconst(leftreg, 2));
         case 8:
             return(cgshlconst(leftreg, 3));
-        default:  
-        // 分配数组int a[10]  int * 10
+        default:
+            // 分配数组int a[10]  int * 10
             rightreg = cgloadint(n->v.size, P_INT);
             return cgmul(leftreg, rightreg); //l = l * r;
         }
     default:
         fatald("Unknown AST operator", n->op);
     }
+    return NOREG;
 }

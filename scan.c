@@ -15,13 +15,13 @@ static int chrpos(char* s, int c)
 }
 
 
-static int next(void) 
+static int next(void)
 // 获取输入文件中的下一个字符
 {
     int c;                     // 使用int类型而不是char是防止EOF失效
     if (Putback)              // 如果Putback中有的话就读取当前Putback值
-    {		                 
-        c = Putback;		
+    {
+        c = Putback;
         Putback = 0;
         return c;
     }
@@ -38,7 +38,7 @@ static void putback(int c)  // 将不需要的值放回Putback中
 }
 
 
-static int skip(void)  
+static int skip(void)
 //不断的获取字符 ，并且忽略掉非必要的东西 譬如while循环中显示  即 a c = 0; 表达式中空格忽略
 {
     int c;
@@ -56,20 +56,20 @@ static int scanint(int c)
     int k, val = 0;
 
     // Convert each character into an int value
-    while ((k = chrpos("0123456789", c)) >= 0) 
+    while ((k = chrpos("0123456789", c)) >= 0)
     {
         val = val * 10 + k;
         c = next();
     }
 
-   
+
     putback(c);// 不是的话就返回
     return val;
 }
 
 
 //  Rejtoken = t;
-void reject_token(struct token* t) 
+void reject_token(struct token* t)
 {
     if (Rejtoken != NULL)
         fatal("Can't reject token twice");
@@ -79,21 +79,21 @@ void reject_token(struct token* t)
 
 
 // 扫描token并判断类型并返回
-int scan(struct token* t) 
+int scan(struct token* t)
 {
     int c = 0;
-    //int tokentype=2 ;
+    int tokentype;
 
 
 
-  // 查看是否有之前拒绝的token 若有的话将全局token 设置为Rejtoken并返回
-    if (Rejtoken != NULL) 
+    // 查看是否有之前拒绝的token 若有的话将全局token 设置为Rejtoken并返回
+    if (Rejtoken != NULL)
     {
         t = Rejtoken;
         Rejtoken = NULL;
         return 1;
     }
-    
+
     c = skip();  // 忽略空格换行符等 类似getc
 
     switch (c)
@@ -117,9 +117,11 @@ int scan(struct token* t)
     case ';':
         t->token = T_SEMI;
         break;
+        /*
     case ',':
         t->token = T_COMMA;
         break;
+        */
     case'=':
         if ((c = next()) == '=') // 不用担心当前为真 因为最终回在 putback中先获取
         {
@@ -140,8 +142,8 @@ int scan(struct token* t)
         }
         else
         {
-             
-             // logic  ???
+
+            // logic  ???
 
 
             putback(c);
@@ -202,15 +204,17 @@ int scan(struct token* t)
             t->token = T_INTLIT;
             break;
         }
-        else if (isalpha(c)||c=='_')
+        else if (isalpha(c) || '_' == c)
         {
             scanident(c, Text, TEXTLEN + 1);// 输入到缓冲区中
-            int judge= keyword(Text);
+            int judge = keyword(Text);
             switch (judge)
             {
+                /*
             case T_PRINT:
                 t->token = T_PRINT;
                 break;
+                */
             case T_INT:
                 t->token = T_INT;
                 break;
@@ -241,46 +245,48 @@ int scan(struct token* t)
             default:
                 t->token = T_IDENT;
                 break;
-            }  
+            }
         }
         else
             fatalc("Unrecognised character", c);
-       
-    }  
+
+    }
     return 1; //找到token
 }
 
 // 把c输入到buf缓冲中，lim为buf物理长度
-static int scanident(int c, char *buf, int bufferlen) 
+static int scanident(int c, char* buf, int bufferlen)
 {
-  int i = 0;
+    int i = 0;
 
-  // 字母数字下划线
-  while (isalpha(c) || isdigit(c) || '_' == c) 
-  {
-    
-    if (bufferlen - 1 == i)
+    // 字母数字下划线
+    while (isalpha(c) || isdigit(c) || '_' == c)
     {
-      printf("identifier too long on line %d\n", Line);
-      exit(1);
-    } 
-    else if (i < bufferlen - 1)
-      buf[i++] = c;
-    c = next();
-  }
- 
-  putback(c); // 遇见不合法，返回
-  buf[i] = '\0';// 设置最后一个为结束
-  return  i;
+
+        if (bufferlen - 1 == i)
+        {
+            printf("identifier too long on line %d\n", Line);
+            exit(1);
+        }
+        else if (i < bufferlen - 1)
+            buf[i++] = c;
+        c = next();
+    }
+
+    putback(c); // 遇见不合法，返回
+    buf[i] = '\0';// 设置最后一个为结束
+    return  i;
 }
 
 static int keyword(char* s)  //获取关键字的类型值
 {
     switch (*s)
     {
-    case 'p':
-        if (!strcmp(s, "print"))
-            return  T_PRINT;
+        /*
+        case 'p':
+            if (!strcmp(s, "print"))
+                return  T_PRINT;
+                */
     case 'i':
         if (!strcmp(s, "int"))
             return  T_INT;
