@@ -7,7 +7,7 @@ static char* reglist[4] = { "%r8", "%r9", "%r10", "%r11" };// 名
 static char* breglist[4] = { "%r8b", "%r9b", "%r10b", "%r11b" }; // b代表 32位 r8寄存器低8位
 static char* dreglist[4] = { "%r8d", "%r9d", "%r10d", "%r11d" };// d代表 64位 r8寄存器低8位
 
-// 0 means no size. P_NONE, P_VOID, P_CHAR, P_INT, P_LONG
+// 0 means no size. P_NONE, P_VOID, P_CHAR, P_INT, P_LONG ,后面为各类地址
 static int psize[] = { 0, 0, 1, 4, 8, 8, 8, 8, 8 };
 
 // 空闲为1 释放所有寄存器

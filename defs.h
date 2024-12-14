@@ -5,17 +5,27 @@ enum
 {
 	T_EOF,
 	// Operators
-	T_ASSIGN,
-	T_PLUS, T_MINUS,
-	T_STAR, T_SLASH,
+	T_ASSIGN, // =
+	T_PLUS,  // +
+	T_MINUS, // -
+	T_STAR, // *
+	T_SLASH, // /
+
 	T_EQ, T_NE,
 	T_LT, T_GT, T_LE, T_GE,
 	// Type keywords
 	T_VOID, T_CHAR, T_INT, T_LONG,
+
 	// Structural tokens
-	T_INTLIT, T_SEMI, T_IDENT,
-	T_LBRACE, T_RBRACE, T_LPAREN, T_RPAREN,
-	T_AMPER, T_LOGAND,
+	T_INTLIT, // 数字
+	T_SEMI,  // ;
+	T_IDENT, // 标识符 变量
+	T_LBRACE, // {
+	T_RBRACE, //  }
+	T_LPAREN, //  (
+	T_RPAREN,//    )
+	T_AMPER,  // & &a
+	T_LOGAND, // && 
 	// Other keywords
 	T_IF, T_ELSE, T_WHILE, T_FOR, T_RETURN
 };
@@ -23,11 +33,26 @@ enum
 // AST 节点类型
 enum
 {
-	A_ASSIGN = 1, A_ADD, A_SUBTRACT, A_MULTIPLY, A_DIVIDE,
+	A_ASSIGN = 1,
+	A_ADD,
+	A_SUBTRACT, 
+	A_MULTIPLY,
+	A_DIVIDE,
 	A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE,
-	A_INTLIT, A_IDENT, A_GLUE,
-	A_IF, A_WHILE, A_FUNCTION, A_WIDEN, A_RETURN,
-	A_FUNCCALL, A_DEREF, A_ADDR, A_SCALE
+
+	A_INTLIT, // 数字
+	A_IDENT,  // 标识符
+	A_GLUE,  //  语句粘连
+
+	A_IF,
+	A_WHILE, 
+	A_FUNCTION, // 函数
+	A_WIDEN,    // char - int 
+	A_RETURN,
+	A_FUNCCALL, // a=fun() 函数调用
+	A_DEREF,  // *p
+	A_ADDR,  // &a
+	A_SCALE  // 大小
 };
 
 // 变量类型 类型匹配
