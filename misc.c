@@ -36,12 +36,14 @@ void rbrace(void) {
     match(T_RBRACE, "}");
 }
 
-void lparen(void) {
+void lparen(void)
+{
     match(T_LPAREN, "(");
 }
 
 // Match a right parenthesis and fetch the next token
-void rparen(void) {
+void rparen(void)
+{
     match(T_RPAREN, ")");
 }
 

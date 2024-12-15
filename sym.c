@@ -27,7 +27,7 @@ int newglob(void)
     return p;
 }
 // 向符号表增加全局符号并返回对应下标
-int addglob(char* name, int type, int stype, int endab)
+int addglob(char* name, int type, int stype, int endab,int size)
 {
     int y;
 
@@ -42,6 +42,7 @@ int addglob(char* name, int type, int stype, int endab)
     Gsym[y].type = type;
     Gsym[y].stype = stype;
     Gsym[y].endlabel = endab;
+    Gsym[y].size = size;
     return y;
 }
 

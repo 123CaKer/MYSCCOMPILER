@@ -17,6 +17,10 @@ void fatal(char* s);
 void fatals(char* s1, char* s2);
 void fatald(char* s, int d);
 void fatalc(char* s, int c);
+void lbrace(void);
+void rbrace(void);
+void lparen(void);
+void rparen(void);
 
 
 
@@ -79,6 +83,7 @@ static int op_precedence(int tokentype);
 struct ASTnode* binexpr(int p);
 
 struct ASTnode* funccall(void); //函数调用
+struct ASTnode* array_access(void); //数组访问
 
 
 //expr2.c
@@ -102,6 +107,7 @@ int genprimsize(int type);
 //int interpretAST(struct ASTnode* n);
 
 
+
 // stmt.c
 struct ASTnode* print_statement();
 struct ASTnode* assignment_statement();
@@ -116,295 +122,13 @@ struct ASTnode* while_statement();
 // sym.c
 int findglob(char* s);
 int newglob(void);
-int addglob(char* name, int type, int stype, int endlabel);
+int addglob(char* name, int type, int stype, int endlabel,int size);
 
 // types.c
 int type_compatible(int* left, int* right, int onlyright);
 
 // gen.c中的静态代码对应的是汇编中的 Label:
 //下标识
-struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
+ struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
 // static 每个文件
-static struct ASTnode* primary()
-{
-    struct ASTnode* n = NULL;
-    int id;
-    // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
-    switch (Token.token)
-    {
-    case T_INTLIT: //值
 
-        if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
-            n = mkastleaf(A_INTLIT, P_CHAR, Token.intvalue);
-        else                                                // int型
-            n = mkastleaf(A_INTLIT, P_INT, Token.intvalue);
-        break;
-
-    case T_IDENT:
-        scan(&Token);
-
-        // It's a '(', so a function call
-        if (Token.token == T_LPAREN)
-            return (funccall());
-
-        // Not a function call, so reject the new token
-        reject_token(&Token);
-
-        // Check that the variable exists. XXX Add structural type test
-        id = findglob(Text);
-        if (id == -1)
-            fatals("Unknown variable", Text);
-
-        // Make a leaf AST node for it
-        n = mkastleaf(A_IDENT, Gsym[id].type, id);
-        break;
-    default:
-        fatald("Syntax error, token", Token.token);
-    }
-
-    scan(&Token);//扫描下一个令牌并返回叶子节点
-    return n;
-}
-
-
-// 生成 if  if_else 从句 
-static int genIFAST(struct ASTnode* n)
-{
-    int Lfalse, Lend;
-
-    /*
-                   A_IF
-              /      |    \
-      condition   真分支  假分支
-
-    */
-
-    /*
-生成两个标签：一个用于假复合语句，另一个用于
-整个IF语句的结尾。当没有ELSE子句时，Lfalse是结束标签！
-    */
-    Lfalse = genlabel();
-    if (n->right)      // 若假分支 存在语句
-        Lend = genlabel();
-
-
-
-    genAST(n->left, Lfalse, n->op);// Condition and jump to Lfalse
-    genfreeregs();
-
-    //  否则真分支 
-    genAST(n->mid, NOLABEL, n->op);
-    genfreeregs();
-
-
-    if (n->right)  /// Lfalse: lend
-        cgjump(Lend);
-
-    // Lfalse: label
-    cglabel(Lfalse);
-
-    //若假存在 生成假分支语句 并跳转
-    if (n->right)
-    {
-        genAST(n->right, NOLABEL, n->op);
-        genfreeregs();
-        cglabel(Lend);
-    }
-
-    return NOREG;
-}
-
-static int genWHILE(struct ASTnode* n)
-{
-
-    int Lstart, Lend;
-
-    // 生成标签
-    Lstart = genlabel();
-    Lend = genlabel();
-    // 依照汇编语法生成汇编形式的while
-    cglabel(Lstart);
-
-
-    genAST(n->left, Lend, n->op);
-    genfreeregs();
-
-    genAST(n->right, NOLABEL, n->op);
-    genfreeregs();
-
-    cgjump(Lstart);
-    cglabel(Lend);  // 跳出while
-    return NOREG;
-
-
-
-
-}
-
-
-// interpretAST的汇编接口版本  后序
-static int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用寄存器对应下标
-{
-    int  leftreg;
-    //  int  midreg;
-    int  rightreg;
-
-    // We now have specific AST node handling at the top
-    switch (n->op)//此处填写语句类型 if fun 。。。
-    {
-    case A_IF:
-        return genIFAST(n);
-    case A_WHILE:
-        return genWHILE(n);
-    case A_GLUE:
-        // Do each child statement, and free the
-        // registers after each child
-        genAST(n->left, NOLABEL, n->op);
-        genfreeregs();
-        genAST(n->right, NOLABEL, n->op);
-        genfreeregs();
-        return NOREG;
-
-
-    case A_FUNCTION:
-        cgfuncpreamble(n->v.id);  // 类似之前的cgpreamble生成函数前置码
-        genAST(n->left, NOLABEL, n->op);
-        cgfuncpostamble(n->v.id); // 类似之前的cgpostamble生成函数前置码
-        return NOREG;
-
-    }
-
-    if (n->left)
-        leftreg = genAST(n->left, NOLABEL, n->op);
-    if (n->right)
-        rightreg = genAST(n->right, NOLABEL, n->op);
-
-    switch (n->op)
-    {
-    case A_ADD:
-        return cgadd(leftreg, rightreg);
-    case A_SUBTRACT:
-        return cgsub(leftreg, rightreg);
-    case A_MULTIPLY:
-        return cgmul(leftreg, rightreg);
-    case A_DIVIDE:
-        return cgdiv(leftreg, rightreg);
-    case A_INTLIT:
-        return (cgloadint(n->v.intvalue, n->type)); // 返回分配的寄存器下标号
-    case A_IDENT:
-        /*
-               A_DEREF
-               /   \        *p间接寻址
-               p    *
-        为右值或者间接寻址
-        */
-        if (n->rvalue || parentASTop == A_DEREF)
-            return (cgloadglob(n->v.id));
-        else
-            return NOREG;
-
-        /*
-    case A_LVIDENT:
-        // printf(" the reg is %d\n",reg);
-        return cgstorglob(reg, n->v.id);
-        */
-        // 比较判断 传入的值为左右寄存器编号
-    case A_EQ:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cgequal(leftreg, rightreg);
-    case A_NE:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cgnotequal(leftreg, rightreg);
-    case A_LT:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cglessthan(leftreg, rightreg);
-    case A_GT:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cggreaterthan(leftreg, rightreg);
-    case A_LE:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cglessequal(leftreg, rightreg);
-    case A_GE:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cggreaterequal(leftreg, rightreg);
-
-
-    case A_ASSIGN:
-        switch (n->right->op)
-        {
-        case A_IDENT:// 赋值变量
-            return cgstorglob(leftreg, n->right->v.id);
-        case A_DEREF: // 间接
-            return cgstorderef(leftreg, rightreg, n->right->type);
-        default:
-            fatald("Can't A_ASSIGN in genAST(), op", n->op);
-        }
-#if 0
-    case A_PRINT:
-        genprintint(leftreg); // 打印左寄存器所存值
-        /*
-              A_PRINT
-              /     \
-            +
-          /   \
-         1     2
-        */
-
-        genfreeregs();
-        return NOREG;
-#endif    
-    case A_WIDEN:
-        // Widen the child's type to the parent's type
-        return (cgwiden(leftreg, n->left->type, n->type));
-
-    case A_RETURN:
-        cgreturn(leftreg, Functionid);
-        return (NOREG);
-
-    case A_FUNCCALL:
-        return (cgcall(leftreg, n->v.id));
-
-    case A_ADDR:
-        return (cgaddress(n->v.id));
-    case A_DEREF:
-
-        //  return (cgderef(leftreg, n->left->type));
-
-        if (n->rvalue)
-            return cgderef(leftreg, n->left->type);
-        else
-            return (leftreg);
-
-    case A_SCALE:
-        // Small optimisation: use shift if the
-        // scale value is a known power of two
-        switch (n->v.size)
-        {
-        case 2:
-            return(cgshlconst(leftreg, 1));
-        case 4:
-            return(cgshlconst(leftreg, 2));
-        case 8:
-            return(cgshlconst(leftreg, 3));
-        default:
-            // 分配数组int a[10]  int * 10
-            rightreg = cgloadint(n->v.size, P_INT);
-            return cgmul(leftreg, rightreg); //l = l * r;
-        }
-    default:
-        fatald("Unknown AST operator", n->op);
-    }
-    return NOREG;
-}

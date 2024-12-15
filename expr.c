@@ -126,7 +126,7 @@ struct ASTnode* binexpr(int p)
                     T_EOF
     */
 
-    if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN)// 匹配)
+    if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN|| Token.token == T_RBRACKET)// 匹配)
 
     {
         /*  AST树
@@ -210,7 +210,7 @@ struct ASTnode* binexpr(int p)
 
 
         tokentype = Token.token;  // 更新 token类型
-        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN)// 匹配)
+        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN || Token.token == T_RBRACKET)// 匹配)
         {
             left->rvalue = 1; //树的左边为右值
             return left;
@@ -222,14 +222,14 @@ struct ASTnode* binexpr(int p)
     return left; //返回创建
 }
 
-struct ASTnode* funccall()
+static struct ASTnode* funccall()
 {
     struct ASTnode* tree;
     int id;
 
     // Check that the identifier has been defined,
     // then make a leaf node for it. XXX Add structural type test
-    if ((id = findglob(Text)) == -1)
+    if ((id = findglob(Text)) == -1 || Gsym[id].stype != S_FUNCTION)
     {
         fatals("Undeclared function", Text);
     }
@@ -247,3 +247,118 @@ struct ASTnode* funccall()
     rparen();
     return (tree);
 }
+
+// Parse the index into an array and
+// return an AST tree for it
+static struct ASTnode* array_access(void) 
+{
+    struct ASTnode* left, * right;
+    int id;
+     
+      /*
+            a[1] *(a+1)
+
+                        A_DEREF
+                       /
+                     A_ADD
+                    /     \
+                (a)A_ADDR  1
+                     
+                     
+      */
+
+    // 判断是否为数组
+    if ((id = findglob(Text)) == -1 || Gsym[id].stype != S_ARRAY)
+    {
+        fatals("Undeclared array", Text);
+    }
+    left = mkastleaf(A_ADDR, Gsym[id].type, id);
+
+    // Get the '['
+    scan(&Token);
+
+    // 右边为表达式 中括号内
+    right = binexpr(0);
+
+    // Get the ']'
+    match(T_RBRACKET, "]");
+
+    // Ensure that this is of int type
+    if (!inttype(right->type))
+        fatal("Array index is not of integer type");
+
+    // Scale the index by the size of the element's type
+    right = modify_type(right, left->type, A_ADD);
+
+    // Return an AST tree where the array's base has the offset
+    // added to it, and dereference the element. Still an lvalue
+    // at this point.
+    left = mkastnode(A_ADD, Gsym[id].type, left, NULL, right, 0);
+    left = mkastunary(A_DEREF, value_at(left->type), left, 0);
+    return (left);
+}
+
+ struct ASTnode* primary()
+ {
+     struct ASTnode* n = NULL;
+     int id;
+     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
+     switch (Token.token)
+     {
+
+     case T_STRLIT:
+         // For a STRLIT token, generate the assembly for it.
+         // Then make a leaf AST node for it. id is the string's label.
+         id = genglobstr(Text); // 生成 汇编
+         n = mkastleaf(A_STRLIT, P_CHARPTR, id);// 生成叶子节点
+         break;
+
+     case T_INTLIT: //数字值
+
+         if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
+             n = mkastleaf(A_INTLIT, P_CHAR, Token.intvalue);
+         else                                                // int型
+             n = mkastleaf(A_INTLIT, P_INT, Token.intvalue);
+         break;
+
+     case T_IDENT:
+
+         scan(&Token);
+
+
+         // 若为 （ 则为函数
+         if (Token.token == T_LPAREN)
+             return (funccall());
+
+         // 若为 [ 则为数组
+         if (Token.token == T_LBRACKET)
+             return (array_access());
+
+         // Not a function call, so reject the new token
+         reject_token(&Token);
+
+         // 检查变量是否存在
+         id = findglob(Text);
+         if (id == -1 || Gsym[id].stype != S_VARIABLE)
+             fatals("Unknown variable", Text);
+
+
+         // 生成叶子节点
+         n = mkastleaf(A_IDENT, Gsym[id].type, id);
+         break;
+     case T_LPAREN:
+         // Beginning of a parenthesised expression, skip the '('.
+         // Scan in the expression and the right parenthesis
+         scan(&Token);
+         n = binexpr(0); // 优先计算（）内的
+         rparen(); // 匹配
+         return (n);
+
+     default:
+         fatald("Expecting a primary expression, got token", Token.token);
+
+     }
+
+     scan(&Token);//扫描下一个令牌并返回叶子节点
+     return n;
+ }

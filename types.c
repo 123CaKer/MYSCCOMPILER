@@ -148,12 +148,14 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
     {
 
         // Left is int type, right is pointer type and the size
-        // of the original type is >1: scale the left
+    // of the original type is >1: scale the left
         if (inttype(ltype) && ptrtype(rtype))
         {
-            rsize = genprimsize(value_at(rtype));// 获取大小解引用  int *a sizeof（*a）
+            rsize = genprimsize(value_at(rtype));
             if (rsize > 1)
-                return (mkastunary(A_SCALE, rtype, tree, rsize));//当前的rsize为联合体中的size
+                return (mkastunary(A_SCALE, rtype, tree, rsize));
+            else
+                return (tree);		// Size 1, no need to scale
         }
     }
 

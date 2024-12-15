@@ -7,13 +7,34 @@
 void var_declaration(int type)
 {
 	int id;
+	// 如果匹配[
+	if (Token.token == T_LBRACKET)
+	{
+		// Skip past the '['
+		scan(&Token);
 
-	// Text now has the identifier's name.
-	// Add it as a known identifier
-	// and generate its space in assembly
-	id = addglob(Text, type, S_VARIABLE, 0);
-	genglobsym(id);
-	// Get the trailing semicolon
+		 //检查 []中是否有 数字
+		if (Token.token == T_INTLIT)
+		{
+			// Add this as a known array and generate its space in assembly.
+			// We treat the array as a pointer to its elements' type
+			id = addglob(Text, pointer_to(type), S_ARRAY, 0, Token.intvalue);
+			genglobsym(id);
+		}
+
+		// 确保匹配 ]
+		scan(&Token);
+		match(T_RBRACKET, "]");
+	}
+	else
+	{
+		// Add this as a known scalar
+		// and generate its space in assembly
+		id = addglob(Text, type, S_VARIABLE, 0, 1);// 添加
+		genglobsym(id);
+	}
+
+	// 分号
 	semi();
 }
 
@@ -70,7 +91,7 @@ struct ASTnode* function_declaration(int type)
 	// to the symbol table, and set the Functionid global
 	// to the function's symbol-id
 	endlabel = genlabel();
-	nameslot = addglob(Text, type, S_FUNCTION, endlabel);
+	nameslot = addglob(Text, type, S_FUNCTION, endlabel,0);
 	Functionid = nameslot;
 
 	// Scan in the parentheses

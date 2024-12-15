@@ -17,6 +17,7 @@ enum
 	T_VOID, T_CHAR, T_INT, T_LONG,
 
 	// Structural tokens
+	T_STRLIT,  // 字符串
 	T_INTLIT, // 数字
 	T_SEMI,  // ;
 	T_IDENT, // 标识符 变量
@@ -24,10 +25,16 @@ enum
 	T_RBRACE, //  }
 	T_LPAREN, //  (
 	T_RPAREN,//    )
+	T_LBRACKET,  // [
+	T_RBRACKET,  // ]
 	T_AMPER,  // & &a
-	T_LOGAND, // && 
+	T_LOGAND, // &&
+
+
+
 	// Other keywords
 	T_IF, T_ELSE, T_WHILE, T_FOR, T_RETURN
+
 };
 
 // AST 节点类型
@@ -41,6 +48,7 @@ enum
 	A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE,
 
 	A_INTLIT, // 数字
+	A_STRLIT,// 字符串
 	A_IDENT,  // 标识符
 	A_GLUE,  //  语句粘连
 
@@ -48,7 +56,7 @@ enum
 	A_WHILE, 
 	A_FUNCTION, // 函数
 	A_WIDEN,    // char - int 
-	A_RETURN,
+	A_RETURN,   // return
 	A_FUNCCALL, // a=fun() 函数调用
 	A_DEREF,  // *p
 	A_ADDR,  // &a
@@ -75,7 +83,8 @@ enum
 enum
 {
 	S_VARIABLE, // 变量
-	S_FUNCTION  // 函数
+	S_FUNCTION,  // 函数
+	S_ARRAY    // 数组
 };
 
 
@@ -111,7 +120,8 @@ struct symtable
 	char* name;                   // 符号名
 	int type;                     // 初等基本类型
 	int stype;                    // 变量还是函数
-	int endlabel;			// For S_FUNCTIONs, the end label
+	int endlabel;			      // For S_FUNCTIONs, the end label
+	int size;                     // 符号表中的符号数量
 };
 
 

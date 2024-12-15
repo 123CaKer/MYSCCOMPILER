@@ -258,18 +258,24 @@ int cgstorglob(int r, int id)
 void cgglobsym(int id)
 {
 	int typesize;
-	// Get the size of the type
-	typesize = cgprimsize(Gsym[id].type); // get size 
+	// 获取符号表中符号类型大小
+	typesize = cgprimsize(Gsym[id].type);
 
+	// Generate the global identity and the label
 	fprintf(Outfile, "\t.data\n" "\t.globl\t%s\n", Gsym[id].name);
-	switch (typesize)
-	{
-	case 1: fprintf(Outfile, "%s:\t.byte\t0\n", Gsym[id].name); break;
-	case 4: fprintf(Outfile, "%s:\t.long\t0\n", Gsym[id].name); break;
-	case 8: fprintf(Outfile, "%s:\t.quad\t0\n", Gsym[id].name); break;
-	default: fatald("Unknown typesize in cgglobsym: ", typesize);
-	}
+	fprintf(Outfile, "%s:", Gsym[id].name);
 
+	// 生成空间
+	for (int i = 0; i < Gsym[id].size; i++)
+	{
+		switch (typesize)
+		{
+		case 1: fprintf(Outfile, "\t.byte\t0\n"); break;
+		case 4: fprintf(Outfile, "\t.long\t0\n"); break;
+		case 8: fprintf(Outfile, "\t.quad\t0\n"); break;
+		default: fatald("Unknown typesize in cgglobsym: ", typesize);
+		}
+	}
 }
 // List of comparison instructions,
 // in AST order: A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE
@@ -412,13 +418,13 @@ int cgderef(int r, int type)
 	switch (type)  
 	{///// 后边均为 r+1
 	case P_CHARPTR:
-		fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r+1]);
+		fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r]);
 		break;
 	case P_INTPTR:
-		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]); 
+		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r]); 
 		break;
 	case P_LONGPTR:
-		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r+1]);
+		fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r]);
 		break;
 	default:
 		fatald("Can't cgderef on type:", type);
@@ -433,7 +439,27 @@ int cgshlconst(int r, int val)
 	return(r);
 }
 
+// Generate a global string and its start label
+void cgglobstr(int l, char* strvalue)
+{
+	char* cptr;
+	cglabel(l);
+	for (cptr = strvalue; *cptr; cptr++) 
+	{
+		fprintf(Outfile, "\t.byte\t%d\n", *cptr);
+	}
+	fprintf(Outfile, "\t.byte\t0\n");
+}
 
+// Given the label number of a global string,
+// load its address into a new register
+int cgloadglobstr(int id)
+{
+	// Get a new register
+	int r = alloc_register();
+	fprintf(Outfile, "\tleaq\tL%d(\%%rip), %s\n", id, reglist[r]);
+	return (r);
+}
 
 // Store through a dereferenced pointer
 int cgstorderef(int r1, int r2, int type)

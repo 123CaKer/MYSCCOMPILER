@@ -49,6 +49,47 @@ static int skip(void)
     return c;
 }
 
+// Return the next character from a character
+// or string literal
+static int scanch(void)   // 主要用于识别 转义字符
+{
+    int c;
+
+    // Get the next input character and interpret
+    // metacharacters that start with a backslash
+    c = next();
+    if (c == '\\') 
+    {
+        switch (c = next()) 
+        {
+        case 'a':
+            return '\a'; //蜂鸣器
+        case 'b':
+            return '\b'; // 退格符 删除当前字符
+        case 'f':
+            return '\f'; // 
+        case 'n':
+            return '\n';
+        case 'r':
+            return '\r'; // 回车符 将光标移动到当前行的开头
+        case 't':
+            return '\t';
+        case 'v':
+            return '\v'; // 垂直制表符
+        case '\\':
+            return '\\'; // /
+        case '"':
+            return '"';// 双引号
+        case '\'':
+            return '\'';
+        default:
+            fatalc("unknown escape sequence", c);
+        }
+    }
+    return (c);			// Just an ordinary old character!
+}
+
+
 
 static int scanint(int c)
 // 从输入文件中扫描并返回整形数据 
@@ -67,6 +108,30 @@ static int scanint(int c)
     return val;
 }
 
+
+// Scan in a string literal from the input file,
+// and store it in buf[]. Return the length of
+// the string. 
+static int scanstr(char* buf)
+{
+    int i, c;
+
+    // Loop while we have enough buffer space
+    for (i = 0; i < TEXTLEN - 1; i++) 
+    {
+        // Get the next char and append to buf
+        // Return when we hit the ending double quote
+        if ((c = scanch()) == '"')
+        {
+            buf[i] = 0;
+            return(i);
+        }
+        buf[i] = c;
+    }
+    // Ran out of buf[] space
+    fatal("String literal too long");
+    return(0);
+}
 
 //  Rejtoken = t;
 void reject_token(struct token* t)
@@ -196,6 +261,29 @@ int scan(struct token* t)
         }
         break;
 
+
+    case '[':
+        t->token = T_LBRACKET;
+        break;
+    case ']':
+        t->token = T_RBRACKET;
+        break;
+
+    case '\'':
+        // If it's a quote, scan in the
+        // literal character value and
+        // the trailing quote
+        t->intvalue = scanch();
+        t->token = T_INTLIT;
+        if (next() != '\'')
+            fatal("Expected '\\'' at end of char literal");
+        break;
+
+    case '"':
+        // Scan in a literal string
+        scanstr(Text);
+        t->token = T_STRLIT;
+        break;
 
     default:
         if (isdigit(c))
