@@ -168,10 +168,26 @@ int scan(struct token* t)
         printf("输入文件已经扫描完成\n");
         return 0;
     case '+':
-        t->token = T_PLUS;
+        if ((c = next()) == '+') 
+        {
+            t->token = T_INC;  // 自增
+        }
+        else 
+        {
+            putback(c);
+            t->token = T_PLUS;
+        }
         break;
     case '-':
-        t->token = T_MINUS;
+        if ((c = next()) == '-')
+        {
+            t->token = T_DEC;// 自减
+        }
+        else 
+        {
+            putback(c);
+            t->token = T_MINUS;
+        }
         break;
     case '*':
         t->token = T_STAR;
@@ -207,34 +223,38 @@ int scan(struct token* t)
         }
         else
         {
-
-            // logic  ???
-
-
             putback(c);
-            fatalc("Unrecognised character", c);
+            t->token = T_LOGNOT;  // 逻辑非
+            break;
+            
         }
     case '>':
         if ((c = next()) == '=')
         {
             t->token = T_GE;
-            break;
         }
-        else
+        else if (c == '>')
         {
-            t->token = T_GT;
-            break;
+            t->token = T_RSHIFT; // 右移
         }
+        else 
+        {
+            putback(c);
+            t->token = T_GT;
+        }
+        break;
     case '<':
         if ((c = next()) == '=')
         {
             t->token = T_LE;
-            break;
         }
-        else
+        else if (c == '<')
         {
+            t->token = T_LSHIFT; // 左移
+        }
+        else {
+            putback(c);
             t->token = T_LT;
-            break;
         }
         break;
     case '{':
@@ -261,6 +281,25 @@ int scan(struct token* t)
         }
         break;
 
+    case '|':
+        if ((c = next()) == '|') 
+        {
+            t->token = T_LOGOR; // 与
+        }
+        else 
+        {
+            putback(c);
+            t->token = T_OR; // 按位与
+        }
+        break;
+
+
+    case '~': // 按位取反
+        t->token = T_INVERT;
+        break;
+    case '^': //  异或
+        t->token = T_XOR;
+        break;
 
     case '[':
         t->token = T_LBRACKET;

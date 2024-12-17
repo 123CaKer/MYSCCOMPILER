@@ -37,6 +37,7 @@
 */
 
 #if 0
+// 现已更改为 赋值expr
 struct ASTnode* assignment_statement()
 {
     struct ASTnode* left, * right, * tree;
@@ -124,8 +125,8 @@ struct ASTnode* if_statement()
     lparen(); // 匹配 (
     condAST = binexpr(0); // 生成条件AST
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        fatal("Bad comparison operator");
-
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, 0);// 此处是保证了 if(x) {stmt}
+    // 其中x为 表达式
     // 判断部分不涉及类型转换
 
 
@@ -157,7 +158,8 @@ struct ASTnode* while_statement()
 
     condAST = binexpr(0);
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        fatal("Bad comparison operator");
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, 0);// 此处是保证了 if(x) {stmt}
+    // 其中x为 表达式
 
     // 判断部分不涉及类型转换
     rparen();// 匹配 )
@@ -180,7 +182,8 @@ struct ASTnode* for_statement()
 
     condAST = binexpr(0);
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        fatal("Bad comparison operator");
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, 0);// 此处是保证了 if(x) {stmt}
+  // 其中x为 表达式
 
     // 判断部分不涉及类型转换
     semi();

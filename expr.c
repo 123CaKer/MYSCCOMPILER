@@ -4,17 +4,60 @@
 #include <stdio.h>
 // AST 解析
 // 操作符优先级  
-static int OpPrec[] =
+static int OpPrec[] = 
 {
-   0, 10,                       // T_EOF,  T_ASSIGN
-  20, 20,                       // T_PLUS, T_MINUS
-  30, 30,                       // T_STAR, T_SLASH
-  40, 40,                       // T_EQ, T_NE
-  50, 50, 50, 50                // T_LT, T_GT, T_LE, T_GE
+  0, 10, 20, 30,		// T_EOF, T_ASSIGN, T_LOGOR, T_LOGAND
+  40, 50, 60,			// T_OR, T_XOR, T_AMPER 
+  70, 70,			// T_EQ, T_NE
+  80, 80, 80, 80,		// T_LT, T_GT, T_LE, T_GE
+  90, 90,			// T_LSHIFT, T_RSHIFT
+  100, 100,			// T_PLUS, T_MINUS
+  110, 110			// T_STAR, T_SLASH
 };
 
-// Parse a prefix expression and return 
-// a sub-tree representing it.
+// 递归下降语法
+#if 0
+primary_expression
+    : T_IDENT
+    | T_INTLIT
+    | T_STRLIT
+    | '(' expression ')'
+    ;
+
+postfix_expression
+    : primary_expression
+    | postfix_expression '[' expression ']'
+    | postfix_expression '(' expression ')'
+    | postfix_expression '++'
+    | postfix_expression '--'
+    ;
+
+prefix_expression
+    : postfix_expression
+    | '++' prefix_expression
+    | '--' prefix_expression
+    | prefix_operator prefix_expression
+    ;
+
+prefix_operator
+    : '&'
+    | '*'
+    | '-'
+    | '~'
+    | '!'
+    ;
+
+multiplicative_expression
+    : prefix_expression
+    | multiplicative_expression '*' prefix_expression
+    | multiplicative_expression '/' prefix_expression
+    | multiplicative_expression '%' prefix_expression
+    ;
+
+etc.
+#endif
+
+// 解析前缀表达式并返回一个对应的AST子树
 /*
    int *a;
     x=&b;
@@ -36,7 +79,7 @@ struct ASTnode* prefix()
         tree->op = A_ADDR;
         tree->type = pointer_to(tree->type);
         break;
-    case T_STAR:
+    case T_STAR: // *
         scan(&Token);
         tree = prefix();
 
@@ -46,16 +89,125 @@ struct ASTnode* prefix()
 
         tree = mkastunary(A_DEREF, value_at(tree->type), tree, 0);// 间接引用
         break;
+
+
+    case T_MINUS:  // 减法
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // Prepend a A_NEGATE operation to the tree and
+        // make the child an rvalue. Because chars are unsigned,
+        // also widen this to int so that it's signed
+        tree->rvalue = 1;
+        tree = modify_type(tree, P_INT, 0);
+        tree = mkastunary(A_NEGATE, tree->type, tree, 0);
+        break;
+
+
+    case T_INVERT: //按位取反
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // 生成子节点
+        tree->rvalue = 1;
+        tree = mkastunary(A_INVERT, tree->type, tree, 0);
+        break;
+    case T_LOGNOT:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // Prepend a A_LOGNOT operation to the tree and
+        // make the child an rvalue.
+        tree->rvalue = 1;
+        tree = mkastunary(A_LOGNOT, tree->type, tree, 0);
+        break;
+    case T_INC: // 自增
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // For now, ensure it's an identifier
+        if (tree->op != A_IDENT)
+            fatal("++ operator must be followed by an identifier");
+
+        // Prepend an A_PREINC operation to the tree
+        tree = mkastunary(A_PREINC, tree->type, tree, 0);
+        break;
+    case T_DEC: // 自减
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // For now, ensure it's an identifier
+        if (tree->op != A_IDENT)
+            fatal("-- operator must be followed by an identifier");
+
+        // Prepend an A_PREDEC operation to the tree
+        tree = mkastunary(A_PREDEC, tree->type, tree, 0);
+        break;
     default:
         tree = primary();
     }
     return tree;
 }
 
-//将 表达式符号转换为AST对应符号
+// 解析后缀表达式并返回一个对应的AST子树
+// Parse a postfix expression and return
+// an AST node representing it. The
+// identifier is already in Text.
+static struct ASTnode* postfix(void)
+{
+    struct ASTnode* n;
+    int id;
+
+    // Scan in the next token to see if we have a postfix expression
+    scan(&Token);
+
+    // 函数调用
+    if (Token.token == T_LPAREN)
+        return (funccall());
+
+    // 数组访问
+    if (Token.token == T_LBRACKET)
+        return (array_access());
+
+    // 此处判断符号表中是否存在
+    id = findglob(Text);
+    if (id == -1 || Gsym[id].stype != S_VARIABLE)
+        fatals("Unknown variable", Text);
+
+    switch (Token.token) // 这里无需进行判断是否ident
+    {
+        // Post-increment: skip over the token
+    case T_INC:
+        scan(&Token);
+        n = mkastleaf(A_POSTINC, Gsym[id].type, id);
+        break;
+
+        // Post-decrement: skip over the token
+    case T_DEC:
+        scan(&Token);
+        n = mkastleaf(A_POSTDEC, Gsym[id].type, id);
+        break;
+
+        // Just a variable reference
+    default:
+        n = mkastleaf(A_IDENT, Gsym[id].type, id);
+    }
+    return (n);
+}
+//将 令牌转换为AST对应符号
 int arithop(int tokentype)
 {
-
+# if 0
     switch (tokentype)
     {
     case T_PLUS:
@@ -80,9 +232,26 @@ int arithop(int tokentype)
         return A_LT;
     case T_ASSIGN:
         return A_ASSIGN;
+   
+
+
+
+
+
+
+
+
+
     default:
         fatald("Syntax error, token", tokentype);
     }
+#endif
+
+    if (tokentype > T_EOF && tokentype <= T_SLASH)
+        return (tokentype);
+    fatald("Syntax error, token", tokentype);
+    return (0);			
+
 }
 
 // 获取运算符优先级
@@ -105,7 +274,7 @@ static int rightassoc(int tokentype)
     return 0;
 }
 
-// 生成语法树 返回root为+ - * /的ast树  其中p为之前的优先级
+// 生成AST语法树 返回root为+ - * /的ast树  其中p为之前的优先级
 struct ASTnode* binexpr(int p)
 {
     struct ASTnode* left, * right;
@@ -323,29 +492,8 @@ static struct ASTnode* array_access(void)
 
      case T_IDENT:
 
-         scan(&Token);
+         return postfix(); // 后缀表达式
 
-
-         // 若为 （ 则为函数
-         if (Token.token == T_LPAREN)
-             return (funccall());
-
-         // 若为 [ 则为数组
-         if (Token.token == T_LBRACKET)
-             return (array_access());
-
-         // Not a function call, so reject the new token
-         reject_token(&Token);
-
-         // 检查变量是否存在
-         id = findglob(Text);
-         if (id == -1 || Gsym[id].stype != S_VARIABLE)
-             fatals("Unknown variable", Text);
-
-
-         // 生成叶子节点
-         n = mkastleaf(A_IDENT, Gsym[id].type, id);
-         break;
      case T_LPAREN:
          // Beginning of a parenthesised expression, skip the '('.
          // Scan in the expression and the right parenthesis

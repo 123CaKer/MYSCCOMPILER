@@ -45,7 +45,7 @@ int cgsub(int r1, int r2);
 int cgmul(int r1, int r2);
 int cgdiv(int r1, int r2);
 void cgprintint(int r);
-int cgloadglob(int id);
+int cgloadglob(int id,int op);
 // Store a register's value into a variable
 int cgstorglob(int r, int id);
 //生成全局符号

@@ -201,32 +201,58 @@ void cgprintint(int r)
 	free_register(r);
 }
 // 从符号表中取得符号并实现mov到 rip寄存器
-int cgloadglob(int id)
+// Load a value from a variable into a register.
+// Return the number of the register. If the
+// operation is pre- or post-increment/decrement,
+// also perform this action.
+int cgloadglob(int id, int op)
 {
+	// Get a new register
 	int r = alloc_register();
 
-	switch (Gsym[id].type)
-	{
+	// Print out the code to initialise it
+	switch (Gsym[id].type) {
 	case P_CHAR:
-		fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", Gsym[id].name,
-			reglist[r]);
+		if (op == A_PREINC)
+			fprintf(Outfile, "\tincb\t%s(\%%rip)\n", Gsym[id].name);
+		if (op == A_PREDEC)
+			fprintf(Outfile, "\tdecb\t%s(\%%rip)\n", Gsym[id].name);
+		fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", Gsym[id].name, reglist[r]);
+		if (op == A_POSTINC)
+			fprintf(Outfile, "\tincb\t%s(\%%rip)\n", Gsym[id].name);
+		if (op == A_POSTDEC)
+			fprintf(Outfile, "\tdecb\t%s(\%%rip)\n", Gsym[id].name);
 		break;
 	case P_INT:
-		fprintf(Outfile, "\tmovzbl\t%s(\%%rip), %s\n", Gsym[id].name,
-			reglist[r]);
+		if (op == A_PREINC)
+			fprintf(Outfile, "\tincl\t%s(\%%rip)\n", Gsym[id].name);
+		if (op == A_PREDEC)
+			fprintf(Outfile, "\tdecl\t%s(\%%rip)\n", Gsym[id].name);
+		fprintf(Outfile, "\tmovslq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
+		if (op == A_POSTINC)
+			fprintf(Outfile, "\tincl\t%s(\%%rip)\n", Gsym[id].name);
+		if (op == A_POSTDEC)
+			fprintf(Outfile, "\tdecl\t%s(\%%rip)\n", Gsym[id].name);
 		break;
 	case P_LONG:
 	case P_CHARPTR:
 	case P_INTPTR:
 	case P_LONGPTR:
+		if (op == A_PREINC)
+			fprintf(Outfile, "\tincq\t%s(\%%rip)\n", Gsym[id].name);
+		if (op == A_PREDEC)
+			fprintf(Outfile, "\tdecq\t%s(\%%rip)\n", Gsym[id].name);
 		fprintf(Outfile, "\tmovq\t%s(\%%rip), %s\n", Gsym[id].name, reglist[r]);
+		if (op == A_POSTINC)
+			fprintf(Outfile, "\tincq\t%s(\%%rip)\n", Gsym[id].name);
+		if (op == A_POSTDEC)
+			fprintf(Outfile, "\tdecq\t%s(\%%rip)\n", Gsym[id].name);
 		break;
 	default:
 		fatald("Bad type in cgloadglob:", Gsym[id].type);
 	}
-	return r;
+	return (r);
 }
-
 // Store a register's value into a variable
 int cgstorglob(int r, int id)
 {
@@ -479,4 +505,69 @@ int cgstorderef(int r1, int r2, int type)
 		fatald("Can't cgstoderef on type:", type);
 	}
 	return (r1);
+}
+
+int cgand(int r1, int r2) // 与
+{
+	fprintf(Outfile, "\tandq\t%s, %s\n", reglist[r1], reglist[r2]);
+	free_register(r1); return (r2);
+}
+
+int cgor(int r1, int r2) // 或
+{
+	fprintf(Outfile, "\torq\t%s, %s\n", reglist[r1], reglist[r2]);
+	free_register(r1); return (r2);
+}
+
+int cgxor(int r1, int r2) // 异或
+{
+	fprintf(Outfile, "\txorq\t%s, %s\n", reglist[r1], reglist[r2]);
+	free_register(r1); return (r2);
+}
+
+// Negate a register's value
+int cgnegate(int r)  // 非
+{
+	fprintf(Outfile, "\tnegq\t%s\n", reglist[r]); return (r);
+}
+
+// Invert a register's value
+int cginvert(int r) 
+{
+	fprintf(Outfile, "\tnotq\t%s\n", reglist[r]); return (r);
+}
+int cgshl(int r1, int r2)
+{
+	fprintf(Outfile, "\tmovb\t%s, %%cl\n", breglist[r2]);
+	fprintf(Outfile, "\tshlq\t%%cl, %s\n", reglist[r1]);
+	free_register(r2); return (r1);
+}
+
+int cgshr(int r1, int r2)
+{
+	fprintf(Outfile, "\tmovb\t%s, %%cl\n", breglist[r2]);
+	fprintf(Outfile, "\tshrq\t%%cl, %s\n", reglist[r1]);
+	free_register(r2); return (r1);
+}
+
+// Logically negate a register's value
+int cglognot(int r)
+{
+	fprintf(Outfile, "\ttest\t%s, %s\n", reglist[r], reglist[r]);
+	fprintf(Outfile, "\tsete\t%s\n", breglist[r]);
+	fprintf(Outfile, "\tmovzbq\t%s, %s\n", breglist[r], reglist[r]);
+	return (r);
+}
+
+//将整型值转换为bool值，并将其设置为condAST
+int cgboolean(int r, int op, int label)
+{
+	fprintf(Outfile, "\ttest\t%s, %s\n", reglist[r], reglist[r]);
+	if (op == A_IF || op == A_WHILE)
+		fprintf(Outfile, "\tje\tL%d\n", label);
+	else {
+		fprintf(Outfile, "\tsetnz\t%s\n", breglist[r]);
+		fprintf(Outfile, "\tmovzbq\t%s, %s\n", breglist[r], reglist[r]);
+	}
+	return (r);
 }

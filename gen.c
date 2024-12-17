@@ -129,6 +129,18 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         return (cgloadint(n->v.intvalue, n->type)); // 返回分配的寄存器下标号
     case A_STRLIT:
         return (cgloadglobstr(n->v.id));
+
+    case A_AND:
+        return (cgand(leftreg, rightreg));
+    case A_OR:
+        return (cgor(leftreg, rightreg));
+    case A_XOR:
+        return (cgxor(leftreg, rightreg));
+    case A_LSHIFT:
+        return (cgshl(leftreg, rightreg));
+    case A_RSHIFT:
+        return (cgshr(leftreg, rightreg));
+
     case A_IDENT:
         /*
                A_DEREF
@@ -137,7 +149,7 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         为右值或者间接寻址
         */
         if (n->rvalue || parentASTop == A_DEREF)
-            return (cgloadglob(n->v.id));
+            return (cgloadglob(n->v.id,n->op));
         else
             return NOREG;
 
@@ -186,6 +198,7 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
             return cgstorglob(leftreg, n->right->v.id);
         case A_DEREF: // 间接
             return cgstorderef(leftreg, rightreg, n->right->type);
+
         default:
             fatald("Can't A_ASSIGN in genAST(), op", n->op);
         }
@@ -243,7 +256,33 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         }
     default:
         fatald("Unknown AST operator", n->op);
+    case A_POSTINC:
+        // Load the variable's value into a register,
+        // then increment it
+        return (cgloadglob(n->v.id, n->op));
+    case A_POSTDEC:
+        // Load the variable's value into a register,
+        // then decrement it
+        return (cgloadglob(n->v.id, n->op));
+    case A_PREINC:
+        // Load and increment the variable's value into a register
+        return (cgloadglob(n->left->v.id, n->op));
+    case A_PREDEC:
+        // Load and decrement the variable's value into a register
+        return (cgloadglob(n->left->v.id, n->op));
+    case A_NEGATE:
+        return (cgnegate(leftreg));
+    case A_INVERT:
+        return (cginvert(leftreg));
+    case A_LOGNOT:
+        return (cglognot(leftreg));
+    case A_TOBOOL:
+        // If the parent AST node is an A_IF or A_WHILE, generate
+        // a compare followed by a jump. Otherwise, set the register
+        // to 0 or 1 based on it's zeroeness or non-zeroeness
+        return (cgboolean(leftreg, parentASTop, reg));
     }
+
     return NOREG;
 }
 
