@@ -2,47 +2,120 @@
 #include "data.h"
 #include "decl.h"   
 
-static int Globs = 0;                   // 空闲全局符号表位置
-// 在符号表中找到全局符号位置并返回
-int findglob(char* s)
+//static int Globs = 0;                   // 空闲全局符号表位置
+// Determine if the symbol s is in the global symbol table.
+// Return its slot position or -1 if not found.
+int findglob(char* s) 
 {
     int i;
 
     for (i = 0; i < Globs; i++)
     {
-        if (*s == *(Gsym[i].name) && !strcmp(s, Gsym[i].name))
-            return i;
+        if (*s == *Gsym[i].name && !strcmp(s, Gsym[i].name))
+            return (i);
     }
-    return -1;
+    return (-1);
 }
 
 // Get the position of a new global symbol slot, or die
 // if we've run out of positions.
-int newglob(void)
+static int newglob(void) 
 {
     int p;
 
-    if ((p = Globs++) >= NSYMBOLS)
+    if ((p = Globs++) >= Locls)
         fatal("Too many global symbols");
-    return p;
+    return (p);
 }
-// 向符号表增加全局符号并返回对应下标
-int addglob(char* name, int type, int stype, int endab,int size)
+
+// Determine if the symbol s is in the local symbol table.
+// Return its slot position or -1 if not found.
+int findlocl(char* s)
 {
-    int y;
+    int i;
+
+    for (i = Locls + 1; i < NSYMBOLS; i++)
+    {
+        if (*s == *Gsym[i].name && !strcmp(s, Gsym[i].name))
+            return (i);
+    }
+    return (-1);
+}
+
+// Get the position of a new local symbol slot, or die
+// if we've run out of positions.
+static int newlocl(void) 
+{
+    int p;
+    if ((p = Locls--) <= Globs)
+        fatal("Too many local symbols");
+    return (p);
+}
+static void updatesym(int slot, char* name, int type, int stype,
+int class, int endlabel, int size, int posn)
+{
+    if (slot < 0 || slot >= NSYMBOLS)
+        fatal("Invalid symbol slot number in updatesym()");
+    Gsym[slot].name = strdup(name);
+    Gsym[slot].type = type;
+    Gsym[slot].stype = stype;
+    Gsym[slot].class = class;
+    Gsym[slot].endlabel = endlabel;
+    Gsym[slot].size = size;
+    Gsym[slot].posn = posn;
+}
+
+// Add a global symbol to the symbol table. Set up its:
+// + type: char, int etc.
+// + structural type: var, function, array etc.
+// + size: number of elements
+// + endlabel: if this is a function
+// Return the slot number in the symbol table
+int addglob(char* name, int type, int stype, int endlabel, int size) {
+    int slot;
 
     // If this is already in the symbol table, return the existing slot
-    if ((y = findglob(name)) != -1)
-        return y;
+    if ((slot = findglob(name)) != -1)
+        return (slot);
 
     // Otherwise get a new slot, fill it in and
     // return the slot number
-    y = newglob();
-    Gsym[y].name = strdup(name);
-    Gsym[y].type = type;
-    Gsym[y].stype = stype;
-    Gsym[y].endlabel = endab;
-    Gsym[y].size = size;
-    return y;
+    slot = newglob();
+    updatesym(slot, name, type, stype, C_GLOBAL, endlabel, size, 0);
+    genglobsym(slot);
+    return (slot);
 }
 
+// Add a local symbol to the symbol table. Set up its:
+// + type: char, int etc.
+// + structural type: var, function, array etc.
+// + size: number of elements
+// + endlabel: if this is a function
+// Return the slot number in the symbol table
+int addlocl(char* name, int type, int stype, int endlabel, int size) 
+{
+    int slot, posn;
+
+    // If this is already in the symbol table, return the existing slot
+    if ((slot = findlocl(name)) != -1)
+        return (slot);
+
+    // Otherwise get a new symbol slot and a position for this local.
+    // Update the symbol table entry and return the slot number
+    slot = newlocl();
+    posn = gengetlocaloffset(type, 0);	// XXX 0 for now
+    updatesym(slot, name, type, stype, C_LOCAL, endlabel, size, posn);
+    return (slot);
+}
+
+// Determine if the symbol s is in the symbol table.
+// Return its slot position or -1 if not found.
+int findsymbol(char* s) 
+{
+    int slot;
+
+    slot = findlocl(s);
+    if (slot == -1)
+        slot = findglob(s);
+    return (slot);
+}

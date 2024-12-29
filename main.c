@@ -13,7 +13,8 @@ static void init()// 初始化全局变量
 {
     Line = 1;
     Putback = '\n';
-    //  Globs = 0;
+    Globs = 0;  /// 符号表初始位置 为 全局变量
+    Locls = NSYMBOLS - 1; /// 符号表末尾 为局部变量
     O_dumpAST = 0;
 }
 // 令牌清单

@@ -19,5 +19,7 @@ struct token	Token;  // 全局令牌
 char Text[TEXTLEN + 1];		// 标识符存储 buff
 struct symtable Gsym[NSYMBOLS]; // 全局符号表 存储变量名等
 int Functionid;         // 符号表中当前函数下标识
-int O_dumpAST;
+int O_dumpAST;         // 调试输出AST节点
 //int Globsq;  // Position of next free global symbol slot  arm
+int Globs;		// Position of next free global symbol slot
+int Locls;		// Position of next free local symbol slot

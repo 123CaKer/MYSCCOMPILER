@@ -4,7 +4,7 @@
 
 
 // 声明变量 type 为变量类型 int char 。。。。
-void var_declaration(int type)
+void var_declaration(int type, int islocal)
 {
 	int id;
 	// 如果匹配[
@@ -16,10 +16,14 @@ void var_declaration(int type)
 		 //检查 []中是否有 数字
 		if (Token.token == T_INTLIT)
 		{
-			// Add this as a known array and generate its space in assembly.
-			// We treat the array as a pointer to its elements' type
-			id = addglob(Text, pointer_to(type), S_ARRAY, 0, Token.intvalue);
-			genglobsym(id);
+			if (islocal) 
+			{
+				addlocl(Text, pointer_to(type), S_ARRAY, 0, Token.intvalue);
+			}
+			else 
+			{
+				addglob(Text, pointer_to(type), S_ARRAY, 0, Token.intvalue);
+			}
 		}
 
 		// 确保匹配 ]
@@ -29,9 +33,15 @@ void var_declaration(int type)
 	else
 	{
 		// Add this as a known scalar
-		// and generate its space in assembly
-		id = addglob(Text, type, S_VARIABLE, 0, 1);// 添加
-		genglobsym(id);
+   // and generate its space in assembly
+		if (islocal) 
+		{
+			addlocl(Text, type, S_VARIABLE, 0, 1);
+		}
+		else
+		{
+			addglob(Text, type, S_VARIABLE, 0, 1);
+		}
 	}
 
 	// 分号
@@ -94,6 +104,8 @@ struct ASTnode* function_declaration(int type)
 	nameslot = addglob(Text, type, S_FUNCTION, endlabel,0);
 	Functionid = nameslot;
 
+	genresetlocals();		// 重新设置局部变量的位置
+
 	// Scan in the parentheses
 	lparen();
 	rparen();
@@ -143,7 +155,7 @@ int parse_type()
 		fatald("Illegal type, token", Token.token);
 	}
 
-	while (1)
+	while (1) //  *****************p
 	{
 		scan(&Token);
 		if (Token.token == T_STAR)
@@ -181,8 +193,8 @@ void global_declarations(void)
 		else
 		{
 
-			// Parse the global variable declaration
-			var_declaration(type);
+			// 解析全局变量声明
+			var_declaration(type,0);
 
 		}
 		if (Token.token == T_EOF)

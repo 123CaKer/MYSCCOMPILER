@@ -89,6 +89,11 @@ struct ASTnode
 
 };
 
+// 存储类型 
+enum {
+	C_GLOBAL = 1,		// 全局
+	C_LOCAL			//  局部
+};
 
 // 符号表
 struct symtable
@@ -98,6 +103,8 @@ struct symtable
 	int stype;                    // 变量还是函数
 	int endlabel;			      // For S_FUNCTIONs, the end label
 	int size;                     // 符号表中的符号数量
+	int posn;			//  局部变量在符号表的位置 为-- 
+	int class;                    // 符号表存储类型 全局还是局部
 };
 
 

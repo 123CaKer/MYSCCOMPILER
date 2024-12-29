@@ -72,7 +72,7 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label);
 
 //decl.c
 // 声明变量
-void var_declaration(int type);
+void var_declaration(int type,int islocal);
 
 //expr.c
 //将 表达式符号转换为AST对应符号

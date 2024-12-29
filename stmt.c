@@ -240,8 +240,9 @@ struct ASTnode* single_statement()
     case T_CHAR:
     case T_LONG:
         type = parse_type();
-        scan(&Token);
-        var_declaration(type);
+        ident();
+        var_declaration(type,1); // 作者认为当前在chr 23中仅考虑符号表设计 并未考虑到
+        // 作用域范围 因此默认为1 （全局）
         return NULL;
 
         /*

@@ -180,7 +180,7 @@ static struct ASTnode* postfix(void)
         return (array_access());
 
     // 此处判断符号表中是否存在
-    id = findglob(Text);
+    id = findsymbol(Text);
     if (id == -1 || Gsym[id].stype != S_VARIABLE)
         fatals("Unknown variable", Text);
 
@@ -257,13 +257,13 @@ int arithop(int tokentype)
 // 获取运算符优先级
 static int op_precedence(int tokentype)
 {
-    int prec = OpPrec[tokentype];
+    int prec;
+    if (tokentype > T_SLASH)
+        fatald("Token with no precedence in op_precedence:", tokentype);
+    prec = OpPrec[tokentype];
     if (prec == 0)
-    {
-        fprintf(stderr, "syntax error  on line %d, token %d\n", Line, tokentype);
-        exit(1);
-    }
-    return prec;
+        fatald("Syntax error, token", tokentype);
+    return (prec);
 }
 
 //判断是否为右结合值
@@ -398,7 +398,7 @@ static struct ASTnode* funccall()
 
     // Check that the identifier has been defined,
     // then make a leaf node for it. XXX Add structural type test
-    if ((id = findglob(Text)) == -1 || Gsym[id].stype != S_FUNCTION)
+    if ((id = findsymbol(Text)) == -1 || Gsym[id].stype != S_FUNCTION)
     {
         fatals("Undeclared function", Text);
     }
@@ -437,7 +437,7 @@ static struct ASTnode* array_access(void)
       */
 
     // 判断是否为数组
-    if ((id = findglob(Text)) == -1 || Gsym[id].stype != S_ARRAY)
+    if ((id = findsymbol(Text)) == -1 || Gsym[id].stype != S_ARRAY)
     {
         fatals("Undeclared array", Text);
     }

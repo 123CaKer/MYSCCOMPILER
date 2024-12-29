@@ -129,7 +129,6 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         return (cgloadint(n->v.intvalue, n->type)); // 返回分配的寄存器下标号
     case A_STRLIT:
         return (cgloadglobstr(n->v.id));
-
     case A_AND:
         return (cgand(leftreg, rightreg));
     case A_OR:
@@ -148,10 +147,21 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
                p    *
         为右值或者间接寻址
         */
+        // Load our value if we are an rvalue
+       // or we are being dereferenced
         if (n->rvalue || parentASTop == A_DEREF)
-            return (cgloadglob(n->v.id,n->op));
+        {
+            if (Gsym[n->v.id].class == C_LOCAL)
+            {
+                return (cgloadlocal(n->v.id, n->op));
+            }
+            else
+            {
+                return (cgloadglob(n->v.id, n->op));
+            }
+        }
         else
-            return NOREG;
+            return (NOREG);
 
         /*
     case A_LVIDENT:
@@ -159,46 +169,33 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         return cgstorglob(reg, n->v.id);
         */
         // 比较判断 传入的值为左右寄存器编号
-    case A_EQ:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cgequal(leftreg, rightreg);
-    case A_NE:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cgnotequal(leftreg, rightreg);
-    case A_LT:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cglessthan(leftreg, rightreg);
-    case A_GT:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cggreaterthan(leftreg, rightreg);
-    case A_LE:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cglessequal(leftreg, rightreg);
-    case A_GE:
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
-        else
-            return cggreaterequal(leftreg, rightreg);
 
+        // 更改部分
+    case A_EQ:
+    case A_NE:
+    case A_LT:
+    case A_GT:
+    case A_LE:
+    case A_GE:
+        // If the parent AST node is an A_IF or A_WHILE, generate
+        // a compare followed by a jump. Otherwise, compare registers
+        // and set one to 1 or 0 based on the comparison.
+        if (parentASTop == A_IF || parentASTop == A_WHILE)
+            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
+        else
+            return (cgcompare_and_set(n->op, leftreg, rightreg));
 
     case A_ASSIGN:
-        switch (n->right->op)
+        // Are we assigning to an identifier or through a pointer?
+        switch (n->right->op) 
         {
-        case A_IDENT:// 赋值变量
-            return cgstorglob(leftreg, n->right->v.id);
-        case A_DEREF: // 间接
-            return cgstorderef(leftreg, rightreg, n->right->type);
-
+        case A_IDENT:
+            if (Gsym[n->right->v.id].class == C_LOCAL)
+                return (cgstorlocal(leftreg, n->right->v.id));
+            else
+                return (cgstorglob(leftreg, n->right->v.id));
+        case A_DEREF:
+            return (cgstorderef(leftreg, rightreg, n->right->type));
         default:
             fatald("Can't A_ASSIGN in genAST(), op", n->op);
         }
@@ -254,8 +251,6 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
             rightreg = cgloadint(n->v.size, P_INT);
             return cgmul(leftreg, rightreg); //l = l * r;
         }
-    default:
-        fatald("Unknown AST operator", n->op);
     case A_POSTINC:
         // Load the variable's value into a register,
         // then increment it
@@ -281,6 +276,8 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         // a compare followed by a jump. Otherwise, set the register
         // to 0 or 1 based on it's zeroeness or non-zeroeness
         return (cgboolean(leftreg, parentASTop, reg));
+    default:
+        fatald("Unknown AST operator", n->op);
     }
 
     return NOREG;
@@ -306,11 +303,12 @@ void genfreeregs()
 {
     freeall_registers();
 }
+#if 0
 void genprintint(int reg)
 {
     cgprintint(reg);
 }
-
+#endif
 void genglobsym(int id)
 {
     cgglobsym(id);
@@ -328,4 +326,13 @@ int genglobstr(char* strvalue)
 int genprimsize(int type)
 {
     return (cgprimsize(type));
+}
+
+void genresetlocals(void)
+{
+    cgresetlocals();
+}
+int gengetlocaloffset(int type, int isparam) 
+{
+    return (cggetlocaloffset(type, isparam));
 }
