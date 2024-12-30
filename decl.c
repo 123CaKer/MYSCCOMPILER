@@ -4,7 +4,7 @@
 
 
 // 声明变量 type 为变量类型 int char 。。。。
-void var_declaration(int type, int islocal)
+void var_declaration(int type, int islocal,int isparam)
 {
 	int id;
 	// 如果匹配[
@@ -18,7 +18,8 @@ void var_declaration(int type, int islocal)
 		{
 			if (islocal) 
 			{
-				addlocl(Text, pointer_to(type), S_ARRAY, 0, Token.intvalue);
+				//addlocl(Text, pointer_to(type), S_ARRAY, 0, Token.intvalue);
+				fatal("For now, declaration of local arrays is not implemented");
 			}
 			else 
 			{
@@ -32,20 +33,56 @@ void var_declaration(int type, int islocal)
 	}
 	else
 	{
-		// Add this as a known scalar
-   // and generate its space in assembly
 		if (islocal) 
 		{
-			addlocl(Text, type, S_VARIABLE, 0, 1);
+			if (addlocl(Text, type, S_VARIABLE, isparam, 1) == -1)
+				fatals("Duplicate local variable declaration", Text);
 		}
-		else
+		else 
 		{
 			addglob(Text, type, S_VARIABLE, 0, 1);
 		}
 	}
 
 	// 分号
-	semi();
+ //	semi();
+}
+
+// param_declaration: <null>
+//           | variable_declaration
+//           | variable_declaration ',' param_declaration
+//
+// Parse the parameters in parentheses after the function name.
+// Add them as symbols to the symbol table and return the number
+// of parameters.
+static int param_declaration(void)
+{
+	int type;
+	int paramcnt = 0;
+
+	// Loop until the final right parentheses
+	//  循环取值 （，，，，，，，............. ）
+	while (Token.token != T_RPAREN)
+	{
+		// Get the type and identifier
+		// and add it to the symbol table
+		type = parse_type();
+		ident();
+		var_declaration(type, 1, 1);
+		paramcnt++;
+
+		// Must have a ',' or ')' at this point
+		switch (Token.token) 
+		{
+		case T_COMMA: scan(&Token); break;
+		case T_RPAREN: break;
+		default:
+			fatald("Unexpected token in parameter list", Token.token);
+		}
+	}
+
+	// 返回函数参数个数
+	return(paramcnt);
 }
 
 
@@ -94,7 +131,7 @@ struct ASTnode* function_declaration(int type)
 struct ASTnode* function_declaration(int type)
 {
 	struct ASTnode* tree, * finalstmt;
-	int nameslot, endlabel;
+	int nameslot, endlabel,paramcnt;
 
 	// Text now has the identifier's name.
 	// Get a label-id for the end label, add the function
@@ -104,11 +141,15 @@ struct ASTnode* function_declaration(int type)
 	nameslot = addglob(Text, type, S_FUNCTION, endlabel,0);
 	Functionid = nameslot;
 
-	genresetlocals();		// 重新设置局部变量的位置
+//	genresetlocals();		// 重新设置局部变量的位置
 
-	// Scan in the parentheses
+	 // Scan in the parentheses and any parameters
+  // Update the function symbol entry with the number of parameters
 	lparen();
+	paramcnt = param_declaration();
+	Gsym[nameslot].nelems = paramcnt;
 	rparen();
+
 
 	// Get the AST tree for the compound statement
 	tree = compound_statement();
@@ -189,13 +230,16 @@ void global_declarations(void)
 				fprintf(stdout, "\n\n");
 			}
 			genAST(tree, NOLABEL, 0);
+
+			// Now free the symbols associated  with this function
+			freeloclsyms();
 		}
 		else
 		{
 
-			// 解析全局变量声明
-			var_declaration(type,0);
-
+			// 解析全局变量声明 并且匹配分号
+			var_declaration(type, 0, 0);
+			semi();
 		}
 		if (Token.token == T_EOF)
 			break;

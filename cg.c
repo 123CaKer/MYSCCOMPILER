@@ -2,23 +2,21 @@
 #include "data.h"
 #include "decl.h"
 
+// Code generator for x86-64
+// Copyright (c) 2019 Warren Toomey, GPL3
 
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
 
-void cgtextseg()
-{
-    if (currSeg != text_seg) 
-    {
+void cgtextseg() {
+    if (currSeg != text_seg) {
         fputs("\t.text\n", Outfile);
         currSeg = text_seg;
     }
 }
 
-void cgdataseg() 
-{
-    if (currSeg != data_seg)
-    {
+void cgdataseg() {
+    if (currSeg != data_seg) {
         fputs("\t.data\n", Outfile);
         currSeg = data_seg;
     }
@@ -29,28 +27,31 @@ void cgdataseg()
 static int localOffset;
 static int stackOffset;
 
-// Reset the position of new local variables when parsing a new function
-void cgresetlocals(void) {
-    localOffset = 0;
-}
-
-// Get the position of the next local variable.
-// Use the isparam flag to allocate a parameter (not yet XXX).
-int cggetlocaloffset(int type, int isparam) {
-    // For now just decrement the offset by a minimum of 4 bytes
+// Create the position of a new local variable.
+static int newlocaloffset(int type) {
+    // Decrement the offset by a minimum of 4 bytes
     // and allocate on the stack
     localOffset += (cgprimsize(type) > 4) ? cgprimsize(type) : 4;
-    // printf("Returning offset %d for type %d\n", localOffset, type);
     return (-localOffset);
 }
 
 // List of available registers and their names.
 // We need a list of byte and doubleword registers, too
+// The list also includes the registers used to
+// hold function parameters
 #define NUMFREEREGS 4
+#define FIRSTPARAMREG 9		// Position of first parameter register
 static int freereg[NUMFREEREGS];
-static char* reglist[] = { "%r8", "%r9", "%r10", "%r11" };
-static char* breglist[] = { "%r8b", "%r9b", "%r10b", "%r11b" };
-static char* dreglist[] = { "%r8d", "%r9d", "%r10d", "%r11d" };
+static char* reglist[] =
+{ "%r10", "%r11", "%r12", "%r13", "%r9", "%r8", "%rcx", "%rdx", "%rsi",
+"%rdi" };
+static char* breglist[] =
+{ "%r10b", "%r11b", "%r12b", "%r13b", "%r9b", "%r8b", "%cl", "%dl", "%sil",
+"%dil" };
+static char* dreglist[] =
+{ "%r10d", "%r11d", "%r12d", "%r13d", "%r9d", "%r8d", "%ecx", "%edx",
+"%esi", "%edi" };
+
 
 // Set all registers as available
 void freeall_registers(void) {
@@ -84,25 +85,56 @@ void cgpreamble() {
 }
 
 // Nothing to do
-void cgpostamble() {
+void cgpostamble()
+{
 }
 
 // Print out a function preamble
-void cgfuncpreamble(int id) {
+void cgfuncpreamble(int id) 
+{
     char* name = Gsym[id].name;
+    int i;
+    int paramOffset = 16;		// Any pushed params start at this stack offset
+    int paramReg = FIRSTPARAMREG;	// Index to the first param register in above reg lists
+
+    // Output in the text segment, reset local offset
     cgtextseg();
+    localOffset = 0;
 
-    // Align the stack pointer to be a multiple of 16
-    // less than its previous value
-    stackOffset = (localOffset + 15) & ~15;
-    // printf("preamble local %d stack %d\n", localOffset, stackOffset);
-
+    // Output the function start, save the %rsp and %rsp
     fprintf(Outfile,
         "\t.globl\t%s\n"
         "\t.type\t%s, @function\n"
         "%s:\n" "\tpushq\t%%rbp\n"
-        "\tmovq\t%%rsp, %%rbp\n"
-        "\taddq\t$%d,%%rsp\n", name, name, name, -stackOffset);
+        "\tmovq\t%%rsp, %%rbp\n", name, name, name);
+
+    // Copy any in-register parameters to the stack
+    // Stop after no more than six parameter registers
+    for (i = NSYMBOLS - 1; i > Locls; i--) {
+        if (Gsym[i].class != C_PARAM)
+            break;
+        if (i < NSYMBOLS - 6)
+            break;
+        Gsym[i].posn = newlocaloffset(Gsym[i].type);
+        cgstorlocal(paramReg--, i);
+    }
+
+    // For the remainder, if they are a parameter then they are
+    // already on the stack. If only a local, make a stack position.
+    for (; i > Locls; i--) {
+        if (Gsym[i].class == C_PARAM) {
+            Gsym[i].posn = paramOffset;
+            paramOffset += 8;
+        }
+        else {
+            Gsym[i].posn = newlocaloffset(Gsym[i].type);
+        }
+    }
+
+    // Align the stack pointer to be a multiple of 16
+    // less than its previous value
+    stackOffset = (localOffset + 15) & ~15;
+    fprintf(Outfile, "\taddq\t$%d,%%rsp\n", -stackOffset);
 }
 
 // Print out a function postamble

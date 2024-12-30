@@ -197,12 +197,11 @@ int scan(struct token* t)
         break;
     case ';':
         t->token = T_SEMI;
-        break;
-        /*
+        break;   
     case ',':
-        t->token = T_COMMA;
+        t->token = T_COMMA; // （ ,  , ）
         break;
-        */
+        
     case'=':
         if ((c = next()) == '=') // 不用担心当前为真 因为最终回在 putback中先获取
         {

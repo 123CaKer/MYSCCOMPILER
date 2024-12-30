@@ -239,10 +239,16 @@ struct ASTnode* single_statement()
     case T_INT:
     case T_CHAR:
     case T_LONG:
+
+
+        // The beginning of a variable declaration.
+    // Parse the type and get the identifier.
+    // Then parse the rest of the declaration
+    // and skip over the semicolon
         type = parse_type();
         ident();
-        var_declaration(type,1); // 作者认为当前在chr 23中仅考虑符号表设计 并未考虑到
-        // 作用域范围 因此默认为1 （全局）
+        var_declaration(type, 1, 0);// 作者认为当前在chr 23中仅考虑符号表设计 并未考虑到作用域范围 因此默认为1 （全局）
+        semi();// 匹配分号
         return NULL;
 
         /*

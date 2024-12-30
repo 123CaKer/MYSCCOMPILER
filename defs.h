@@ -25,7 +25,7 @@ enum
 	// Structural tokens
 	T_INTLIT, T_STRLIT, T_SEMI, T_IDENT,
 	T_LBRACE, T_RBRACE, T_LPAREN, T_RPAREN,
-	T_LBRACKET, T_RBRACKET
+	T_LBRACKET, T_RBRACKET,T_COMMA
 };
 
 // AST 节点类型
@@ -92,7 +92,8 @@ struct ASTnode
 // 存储类型 
 enum {
 	C_GLOBAL = 1,		// 全局
-	C_LOCAL			//  局部
+	C_LOCAL	,		//  局部
+	C_PARAM                 // Locally visible function parameter
 };
 
 // 符号表
@@ -105,6 +106,8 @@ struct symtable
 	int size;                     // 符号表中的符号数量
 	int posn;			//  局部变量在符号表的位置 为-- 
 	int class;                    // 符号表存储类型 全局还是局部
+    #define nelems posn		// For functions, # of params
+			// For structs, # of fields
 };
 
 

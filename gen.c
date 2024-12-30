@@ -148,16 +148,15 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         为右值或者间接寻址
         */
         // Load our value if we are an rvalue
-       // or we are being dereferenced
+      // or we are being dereferenced
         if (n->rvalue || parentASTop == A_DEREF)
         {
-            if (Gsym[n->v.id].class == C_LOCAL)
-            {
-                return (cgloadlocal(n->v.id, n->op));
-            }
-            else
+            if (Gsym[n->v.id].class == C_GLOBAL)
             {
                 return (cgloadglob(n->v.id, n->op));
+            }
+            else {
+                return (cgloadlocal(n->v.id, n->op));// C_PARAM和C_LOCAL
             }
         }
         else
@@ -190,10 +189,10 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         switch (n->right->op) 
         {
         case A_IDENT:
-            if (Gsym[n->right->v.id].class == C_LOCAL)
-                return (cgstorlocal(leftreg, n->right->v.id));
-            else
+            if (Gsym[n->right->v.id].class == C_GLOBAL)
                 return (cgstorglob(leftreg, n->right->v.id));
+            else // C_PARAM和C_LOCAL
+                return (cgstorlocal(leftreg, n->right->v.id));
         case A_DEREF:
             return (cgstorderef(leftreg, rightreg, n->right->type));
         default:
@@ -328,6 +327,7 @@ int genprimsize(int type)
     return (cgprimsize(type));
 }
 
+#if 0
 void genresetlocals(void)
 {
     cgresetlocals();
@@ -336,3 +336,4 @@ int gengetlocaloffset(int type, int isparam)
 {
     return (cggetlocaloffset(type, isparam));
 }
+#endif
