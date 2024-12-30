@@ -57,6 +57,64 @@ multiplicative_expression
 etc.
 #endif
 
+// expression_list: <null>
+//        | expression
+//        | expression ',' expression_list
+//        ;
+// 类似函数参数扫描，只不过将其换成表达式
+
+/*
+
+              A_FUNCCALL
+                  /
+              A_GLUE
+               /   \
+           A_GLUE  expr4
+            /   \
+        A_GLUE  expr3
+         /   \
+     A_GLUE  expr2
+     /    \
+   NULL  expr1
+
+*/
+static struct ASTnode* expression_list(void)
+{
+    struct ASTnode* tree = NULL;
+    struct ASTnode* child = NULL;
+    int exprcount = 0;
+
+    // Loop until the final right parentheses
+    while (Token.token != T_RPAREN) 
+    {
+
+        // Parse the next expression and increment the expression count
+        child = binexpr(0);
+        exprcount++;
+
+        // Build an A_GLUE AST node with the previous tree as the left child
+        // and the new expression as the right child. Store the expression count.
+        tree = mkastnode(A_GLUE, P_NONE, tree, NULL, child, exprcount);// 右边生成expr
+
+        // 判断下一个是否为， 或者）
+        switch (Token.token)
+        {
+        case T_COMMA:
+            scan(&Token);
+            break;
+        case T_RPAREN:
+            break;
+        default:
+            fatald("Unexpected token in expression list", Token.token);
+        }
+    }
+
+    //返回最终表达式
+    return (tree);
+}
+
+
+
 // 解析前缀表达式并返回一个对应的AST子树
 /*
    int *a;
@@ -295,7 +353,8 @@ struct ASTnode* binexpr(int p)
                     T_EOF
     */
 
-    if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN|| Token.token == T_RBRACKET)// 匹配)
+    if (Token.token == T_EOF || Token.token == T_SEMI ||
+        Token.token == T_RPAREN|| Token.token == T_RBRACKET || Token.token == T_COMMA)// 匹配 结束符
 
     {
         /*  AST树
@@ -379,7 +438,7 @@ struct ASTnode* binexpr(int p)
 
 
         tokentype = Token.token;  // 更新 token类型
-        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN || Token.token == T_RBRACKET)// 匹配)
+        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN || Token.token == T_RBRACKET || Token.token == T_COMMA)// 匹配 结束符
         {
             left->rvalue = 1; //树的左边为右值
             return left;
@@ -405,8 +464,8 @@ static struct ASTnode* funccall()
     //  匹配'('
     lparen();
 
-    // Parse the following expression
-    tree = binexpr(0);
+    //参数表达式解析
+    tree = expression_list();
 
     // Build the function call AST node. Store the
     // function's return type as this node's type.

@@ -77,6 +77,47 @@ static int genWHILE(struct ASTnode* n)
 
 }
 
+/*
+               A_FUNCCALL
+                  /
+              A_GLUE
+               /   \
+           A_GLUE  expr4
+            /   \
+        A_GLUE  expr3
+         /   \
+     A_GLUE  expr2
+     /    \
+   NULL  expr1
+
+
+*/
+static int gen_funccall(struct ASTnode* n)
+{
+    struct ASTnode* gluetree = n->left;
+    int reg;
+    int numargs = 0;
+
+    // If there is a list of arguments, walk this list
+    // from the last argument (right-hand child) to the
+    // first
+    while (gluetree)
+    {
+        // 右边生成
+        reg = genAST(gluetree->right, NOLABEL, gluetree->op);
+        // Copy this into the n'th function parameter: size is 1, 2, 3, ...
+        cgcopyarg(reg, gluetree->v.size);
+        // Keep the first (highest) number of arguments
+        if (numargs == 0) numargs = gluetree->v.size;
+        genfreeregs();
+        gluetree = gluetree->left;
+    }
+
+    // Call the function, clean up the stack (based on numargs),
+    // and return its result
+    return (cgcall(n->v.id, numargs));
+}
+
 
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用寄存器对应下标
@@ -92,6 +133,8 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         return genIFAST(n);
     case A_WHILE:
         return genWHILE(n);
+    case A_FUNCCALL: // 函数调用
+        return (gen_funccall(n)); // 将当前函数传入（A_FUNCALL）
     case A_GLUE:
         // Do each child statement, and free the
         // registers after each child

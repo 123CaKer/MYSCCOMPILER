@@ -2,8 +2,6 @@
 #include "data.h"
 #include "decl.h"
 
-// Code generator for x86-64
-// Copyright (c) 2019 Warren Toomey, GPL3
 
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
@@ -44,13 +42,18 @@ static int newlocaloffset(int type) {
 static int freereg[NUMFREEREGS];
 static char* reglist[] =
 { "%r10", "%r11", "%r12", "%r13", "%r9", "%r8", "%rcx", "%rdx", "%rsi",
-"%rdi" };
+"%rdi"
+};
+
 static char* breglist[] =
 { "%r10b", "%r11b", "%r12b", "%r13b", "%r9b", "%r8b", "%cl", "%dl", "%sil",
-"%dil" };
+"%dil"
+};
+
 static char* dreglist[] =
 { "%r10d", "%r11d", "%r12d", "%r13d", "%r9d", "%r8d", "%ecx", "%edx",
-"%esi", "%edi" };
+"%esi", "%edi"
+};
 
 
 // Set all registers as available
@@ -85,13 +88,11 @@ void cgpreamble() {
 }
 
 // Nothing to do
-void cgpostamble()
-{
+void cgpostamble() {
 }
 
 // Print out a function preamble
-void cgfuncpreamble(int id) 
-{
+void cgfuncpreamble(int id) {
     char* name = Gsym[id].name;
     int i;
     int paramOffset = 16;		// Any pushed params start at this stack offset
@@ -374,16 +375,43 @@ int cgboolean(int r, int op, int label) {
     return (r);
 }
 
-// Call a function with one argument from the given register
+// Call a function with the given symbol id
+// Pop off any arguments pushed on the stack
 // Return the register with the result
-int cgcall(int r, int id) {
+int cgcall(int id, int numargs) {
     // Get a new register
     int outr = alloc_register();
-    fprintf(Outfile, "\tmovq\t%s, %%rdi\n", reglist[r]);
+    // Call the function
     fprintf(Outfile, "\tcall\t%s\n", Gsym[id].name);
+    // Remove any arguments pushed on the stack
+    if (numargs > 6)
+        fprintf(Outfile, "\taddq\t$%d, %%rsp\n", 8 * (numargs - 6));
+    // and copy the return value into our register
     fprintf(Outfile, "\tmovq\t%%rax, %s\n", reglist[outr]);
-    free_register(r);
     return (outr);
+}
+
+// Given a register with an argument value,
+// copy this argument into the argposn'th
+// parameter in preparation for a future function
+// call. Note that argposn is 1, 2, 3, 4, ..., never zero.
+void cgcopyarg(int r, int argposn) 
+{
+
+    // If this is above the sixth argument, simply push the
+    // register on the stack. We rely on being called with
+    // successive arguments in the correct order for x86-64
+    if (argposn > 6)   // 若一个函数的形参大于六个
+    {
+        fprintf(Outfile, "\tpushq\t%s\n", reglist[r]); // 先压入栈中
+    }
+    else   // 否则直接复制到设置好的寄存器中
+    {
+        // Otherwise, copy the value into one of the six registers
+        // used to hold parameter values
+        fprintf(Outfile, "\tmovq\t%s, %s\n", reglist[r],
+            reglist[FIRSTPARAMREG - argposn + 1]);
+    }
 }
 
 // Shift a register left by a constant
@@ -604,8 +632,7 @@ int cgderef(int r, int type) {
 }
 
 // Store through a dereferenced pointer
-int cgstorderef(int r1, int r2, int type)
-{
+int cgstorderef(int r1, int r2, int type) {
     switch (type) {
     case P_CHAR:
         fprintf(Outfile, "\tmovb\t%s, (%s)\n", breglist[r1], reglist[r2]);
