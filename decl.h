@@ -122,7 +122,7 @@ struct ASTnode* while_statement();
 // sym.c
 int findglob(char* s);
 int newglob(void);
-int addglob(char* name, int type, int stype, int endlabel,int size);
+int addglob(char* name, int type, int stype, int endlabel,int ,int size);
 
 // types.c
 int type_compatible(int* left, int* right, int onlyright);

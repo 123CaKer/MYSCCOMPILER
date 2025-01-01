@@ -19,6 +19,19 @@ int findglob(char* s)
     return (-1);
 }
 
+// Given a function's slot number, copy the global parameters
+// from its prototype to be local parameters
+// 将函数声明中的参数转换为当前函数的局部参数
+void copyfuncparams(int slot)
+{
+    int i, id = slot + 1;
+
+    for (i = 0; i < Gsym[slot].nelems; i++, id++) 
+    {
+        addlocl(Gsym[id].name, Gsym[id].type, Gsym[id].stype,Gsym[id].class, Gsym[id].size);
+    }
+}
+
 // Clear all the entries in the
 // local symbol table
 void freeloclsyms(void) 
@@ -78,54 +91,49 @@ int class, int endlabel, int size, int posn) // 更新符号表
 // Add a global symbol to the symbol table. Set up its:
 // + type: char, int etc.
 // + structural type: var, function, array etc.
+// + class of the symbol
 // + size: number of elements
 // + endlabel: if this is a function
 // Return the slot number in the symbol table
-int addglob(char* name, int type, int stype, int endlabel, int size) {
+int addglob(char* name, int type, int stype, int class, int endlabel, int size) 
+{
     int slot;
 
     // If this is already in the symbol table, return the existing slot
     if ((slot = findglob(name)) != -1)
         return (slot);
 
-    // Otherwise get a new slot, fill it in and
-    // return the slot number
+    // Otherwise get a new slot and fill it in
     slot = newglob();
-    updatesym(slot, name, type, stype, C_GLOBAL, endlabel, size, 0);
-    genglobsym(slot);
+    updatesym(slot, name, type, stype, class, endlabel, size, 0);
+    // Generate the assembly for the symbol if it's global
+    if (class == C_GLOBAL)
+        genglobsym(slot);
+    // Return the slot number
     return (slot);
 }
-
 // Add a local symbol to the symbol table. Set up its:
 // + type: char, int etc.
 // + structural type: var, function, array etc.
 // + size: number of elements
-// + isparam: if true, this is a parameter to the function
 // Return the slot number in the symbol table, -1 if a duplicate entry
-int addlocl(char* name, int type, int stype, int isparam, int size) 
+int addlocl(char* name, int type, int stype, int class, int size) 
 {
-    int localslot, globalslot;
+    int localslot;
+
+    // If this is already in the symbol table, return an error
     if ((localslot = findlocl(name)) != -1)
         return (-1);
 
     // Otherwise get a new symbol slot and a position for this local.
-    // Update the local symbol table entry. If this is a parameter,
-    // also create a global C_PARAM entry to build the function's prototype.
+    // Update the local symbol table entry.
     localslot = newlocl();
-    if (isparam) // 判断是否为函数参数
-    {
-        updatesym(localslot, name, type, stype, C_PARAM, 0, size, 0); //  更新符号表C_PARAM
-        globalslot = newglob();
-        updatesym(globalslot, name, type, stype, C_PARAM, 0, size, 0); //建立一个函数原型且函数原型为全局变量
-    }
-    else 
-    {
-        updatesym(localslot, name, type, stype, C_LOCAL, 0, size, 0);//  更新符号表C_LOCAL
-    }
+    updatesym(localslot, name, type, stype, class, 0, size, 0);
 
-    // 返回所增加的符号表位置
+    // Return the local symbol's slot
     return (localslot);
 }
+
 
 // Determine if the symbol s is in the symbol table.
 // Return its slot position or -1 if not found.
