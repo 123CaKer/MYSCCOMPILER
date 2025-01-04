@@ -123,6 +123,7 @@ struct ASTnode* while_statement();
 int findglob(char* s);
 int newglob(void);
 int addglob(char* name, int type, int stype, int endlabel,int ,int size);
+void clear_symtable(void);
 
 // types.c
 int type_compatible(int* left, int* right, int onlyright);

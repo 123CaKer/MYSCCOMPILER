@@ -23,3 +23,11 @@ int O_dumpAST;         // 调试输出AST节点
 //int Globsq;  // Position of next free global symbol slot  arm
 int Globs;		// Position of next free global symbol slot
 int Locls;		// Position of next free local symbol slot
+
+
+ int O_dumpAST;		// 为真, dump the AST trees
+ int O_keepasm;		// 为真, 保持汇编文件
+ int O_assemble;	// 为真, 编译汇编文件
+ int O_dolink;		// 为真, 连接obj文件
+ int O_verbose;		// If true, print info on compilation stages
+ char* Outfilename;	// 被打开的输出文件名字
