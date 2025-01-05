@@ -538,7 +538,7 @@ static struct ASTnode* array_access(void)
          // For a STRLIT token, generate the assembly for it.
          // Then make a leaf AST node for it. id is the string's label.
          id = genglobstr(Text); // 生成 汇编
-         n = mkastleaf(A_STRLIT, P_CHARPTR, id);// 生成叶子节点
+         n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), id);// 生成叶子节点
          break;
 
      case T_INTLIT: //数字值

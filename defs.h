@@ -52,18 +52,14 @@ enum {
 	A_NEGATE, A_INVERT, A_LOGNOT, A_TOBOOL
 };
 // 变量类型 类型匹配
-enum
+// Primitive types. The bottom 4 bits is an integer
+// value that represents the level of indirection,
+// e.g. 0= no pointer, 1= pointer, 2= pointer pointer etc.
+enum 
 {
-	P_NONE,  //当前AST节点并不是表达式或者一种变量 例如 A_GLUE 
-	P_VOID,
-	P_CHAR,
-	P_INT,
-	P_LONG,
-	P_VOIDPTR,
-	P_CHARPTR,
-	P_INTPTR,
-	P_LONGPTR
-
+	P_NONE//当前AST节点并不是表达式或者一种变量 例如 A_GLUE 
+	
+	, P_VOID = 16, P_CHAR = 32, P_INT = 48, P_LONG = 64
 };
 
 

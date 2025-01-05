@@ -45,6 +45,7 @@ int type_compatible(int* left, int* right, int onlyright)
 // int *a 地址
 int pointer_to(int type)
 {
+#if 0
     int newtype;
     switch (type)
     {
@@ -64,11 +65,16 @@ int pointer_to(int type)
         fatald("Unrecognised in pointer_to: type", type);
     }
     return newtype;
+#endif
+    if ((type & 0xf) == 0xf)
+        fatald("Unrecognised in pointer_to: type", type);
+    return (type + 1);//eg 31 +1 =32   100000
 }
 
 //  *a 解引用
 int value_at(int type)
 {
+#if 0
     int newtype;
     switch (type)
     {
@@ -88,22 +94,32 @@ int value_at(int type)
         fatald("Unrecognised in value_at: type", type);
     }
     return newtype;
+#endif
+    if ((type & 0xf) == 0x0)
+        fatald("Unrecognised in value_at: type", type);
+    return (type - 1); //eg 32 -1 =31  11111 二进制 
 }
 
-//判断是否为 int 类的类型 是为1
+//判断是否为 非指针类的类型   若是则为1
 int inttype(int type)
 {
+#if 0
     if (type == P_CHAR || type == P_INT || type == P_LONG)
         return 1;
     return 0;
+#endif
+    return ((type & 0xf) == 0);
 }
 
 //判断是否为指针类的类型 是为1
 int ptrtype(int type)
 {
+#if 0
     if (type == P_VOIDPTR || type == P_CHARPTR || type == P_INTPTR || type == P_LONGPTR)
         return 1;
     return 0;
+#endif
+    return ((type & 0xf) != 0);
 }
 
 //当前的tree适配rtype op为当前tree操作符

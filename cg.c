@@ -160,40 +160,13 @@ int cgloadint(int value, int type) {
 // Return the number of the register. If the
 // operation is pre- or post-increment/decrement,
 // also perform this action.
-int cgloadglob(int id, int op) {
+int cgloadglob(int id, int op)
+{
     // Get a new register
     int r = alloc_register();
 
-    // Print out the code to initialise it
-    switch (Gsym[id].type) {
-    case P_CHAR:
-        if (op == A_PREINC)
-            fprintf(Outfile, "\tincb\t%s(%%rip)\n", Gsym[id].name);
-        if (op == A_PREDEC)
-            fprintf(Outfile, "\tdecb\t%s(%%rip)\n", Gsym[id].name);
-        fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", Gsym[id].name,
-            reglist[r]);
-        if (op == A_POSTINC)
-            fprintf(Outfile, "\tincb\t%s(%%rip)\n", Gsym[id].name);
-        if (op == A_POSTDEC)
-            fprintf(Outfile, "\tdecb\t%s(%%rip)\n", Gsym[id].name);
-        break;
-    case P_INT:
-        if (op == A_PREINC)
-            fprintf(Outfile, "\tincl\t%s(%%rip)\n", Gsym[id].name);
-        if (op == A_PREDEC)
-            fprintf(Outfile, "\tdecl\t%s(%%rip)\n", Gsym[id].name);
-        fprintf(Outfile, "\tmovslq\t%s(%%rip), %s\n", Gsym[id].name,
-            reglist[r]);
-        if (op == A_POSTINC)
-            fprintf(Outfile, "\tincl\t%s(%%rip)\n", Gsym[id].name);
-        if (op == A_POSTDEC)
-            fprintf(Outfile, "\tdecl\t%s(%%rip)\n", Gsym[id].name);
-        break;
-    case P_LONG:
-    case P_CHARPTR:
-    case P_INTPTR:
-    case P_LONGPTR:
+    if (cgprimsize(Gsym[id].type) == 8)// 包含 long类型 因为long长度大
+    {
         if (op == A_PREINC)
             fprintf(Outfile, "\tincq\t%s(%%rip)\n", Gsym[id].name);
         if (op == A_PREDEC)
@@ -204,9 +177,38 @@ int cgloadglob(int id, int op) {
             fprintf(Outfile, "\tincq\t%s(%%rip)\n", Gsym[id].name);
         if (op == A_POSTDEC)
             fprintf(Outfile, "\tdecq\t%s(%%rip)\n", Gsym[id].name);
-        break;
-    default:
-        fatald("Bad type in cgloadglob:", Gsym[id].type);
+    }
+    else
+    { 
+        switch (Gsym[id].type)
+        {
+        case P_CHAR:
+            if (op == A_PREINC)
+                fprintf(Outfile, "\tincb\t%s(%%rip)\n", Gsym[id].name);
+            if (op == A_PREDEC)
+                fprintf(Outfile, "\tdecb\t%s(%%rip)\n", Gsym[id].name);
+            fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", Gsym[id].name,
+                reglist[r]);
+            if (op == A_POSTINC)
+                fprintf(Outfile, "\tincb\t%s(%%rip)\n", Gsym[id].name);
+            if (op == A_POSTDEC)
+                fprintf(Outfile, "\tdecb\t%s(%%rip)\n", Gsym[id].name);
+            break;
+        case P_INT:
+            if (op == A_PREINC)
+                fprintf(Outfile, "\tincl\t%s(%%rip)\n", Gsym[id].name);
+            if (op == A_PREDEC)
+                fprintf(Outfile, "\tdecl\t%s(%%rip)\n", Gsym[id].name);
+            fprintf(Outfile, "\tmovslq\t%s(%%rip), %s\n", Gsym[id].name,
+                reglist[r]);
+            if (op == A_POSTINC)
+                fprintf(Outfile, "\tincl\t%s(%%rip)\n", Gsym[id].name);
+            if (op == A_POSTDEC)
+                fprintf(Outfile, "\tdecl\t%s(%%rip)\n", Gsym[id].name);
+            break;
+        default:
+            fatald("Bad type in cgloadglob:", Gsym[id].type);
+        }
     }
     return (r);
 }
@@ -215,40 +217,14 @@ int cgloadglob(int id, int op) {
 // Return the number of the register. If the
 // operation is pre- or post-increment/decrement,
 // also perform this action.
-int cgloadlocal(int id, int op) {
+int cgloadlocal(int id, int op)
+{
     // Get a new register
     int r = alloc_register();
 
-    // Print out the code to initialise it
-    switch (Gsym[id].type) {
-    case P_CHAR:
-        if (op == A_PREINC)
-            fprintf(Outfile, "\tincb\t%d(%%rbp)\n", Gsym[id].posn);
-        if (op == A_PREDEC)
-            fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", Gsym[id].posn);
-        fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", Gsym[id].posn,
-            reglist[r]);
-        if (op == A_POSTINC)
-            fprintf(Outfile, "\tincb\t%d(%%rbp)\n", Gsym[id].posn);
-        if (op == A_POSTDEC)
-            fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", Gsym[id].posn);
-        break;
-    case P_INT:
-        if (op == A_PREINC)
-            fprintf(Outfile, "\tincl\t%d(%%rbp)\n", Gsym[id].posn);
-        if (op == A_PREDEC)
-            fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", Gsym[id].posn);
-        fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", Gsym[id].posn,
-            reglist[r]);
-        if (op == A_POSTINC)
-            fprintf(Outfile, "\tincl\t%d(%%rbp)\n", Gsym[id].posn);
-        if (op == A_POSTDEC)
-            fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", Gsym[id].posn);
-        break;
-    case P_LONG:
-    case P_CHARPTR:
-    case P_INTPTR:
-    case P_LONGPTR:
+    // 与cgloadglob类似
+    if (cgprimsize(Gsym[id].type) == 8)
+    {
         if (op == A_PREINC)
             fprintf(Outfile, "\tincq\t%d(%%rbp)\n", Gsym[id].posn);
         if (op == A_PREDEC)
@@ -259,9 +235,38 @@ int cgloadlocal(int id, int op) {
             fprintf(Outfile, "\tincq\t%d(%%rbp)\n", Gsym[id].posn);
         if (op == A_POSTDEC)
             fprintf(Outfile, "\tdecq\t%d(%%rbp)\n", Gsym[id].posn);
-        break;
-    default:
-        fatald("Bad type in cgloadlocal:", Gsym[id].type);
+    }
+    else
+    { 
+        switch (Gsym[id].type)
+        {
+        case P_CHAR:
+            if (op == A_PREINC)
+                fprintf(Outfile, "\tincb\t%d(%%rbp)\n", Gsym[id].posn);
+            if (op == A_PREDEC)
+                fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", Gsym[id].posn);
+            fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", Gsym[id].posn,
+                reglist[r]);
+            if (op == A_POSTINC)
+                fprintf(Outfile, "\tincb\t%d(%%rbp)\n", Gsym[id].posn);
+            if (op == A_POSTDEC)
+                fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", Gsym[id].posn);
+            break;
+        case P_INT:
+            if (op == A_PREINC)
+                fprintf(Outfile, "\tincl\t%d(%%rbp)\n", Gsym[id].posn);
+            if (op == A_PREDEC)
+                fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", Gsym[id].posn);
+            fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", Gsym[id].posn,
+                reglist[r]);
+            if (op == A_POSTINC)
+                fprintf(Outfile, "\tincl\t%d(%%rbp)\n", Gsym[id].posn);
+            if (op == A_POSTDEC)
+                fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", Gsym[id].posn);
+            break;
+        default:
+            fatald("Bad type in cgloadlocal:", Gsym[id].type);
+        }
     }
     return (r);
 }
@@ -421,32 +426,44 @@ int cgshlconst(int r, int val) {
 }
 
 // Store a register's value into a variable
-int cgstorglob(int r, int id) {
-    switch (Gsym[id].type) {
-    case P_CHAR:
-        fprintf(Outfile, "\tmovb\t%s, %s(%%rip)\n", breglist[r],
-            Gsym[id].name);
-        break;
-    case P_INT:
-        fprintf(Outfile, "\tmovl\t%s, %s(%%rip)\n", dreglist[r],
-            Gsym[id].name);
-        break;
-    case P_LONG:
-    case P_CHARPTR:
-    case P_INTPTR:
-    case P_LONGPTR:
+int cgstorglob(int r, int id)
+{
+    if (cgprimsize(Gsym[id].type) == 8) 
+    {
         fprintf(Outfile, "\tmovq\t%s, %s(%%rip)\n", reglist[r],
             Gsym[id].name);
-        break;
-    default:
-        fatald("Bad type in cgstorglob:", Gsym[id].type);
+    }
+    else
+    {
+        switch (Gsym[id].type)
+        {
+        case P_CHAR:
+            fprintf(Outfile, "\tmovb\t%s, %s(%%rip)\n", breglist[r],
+                Gsym[id].name);
+            break;
+        case P_INT:
+            fprintf(Outfile, "\tmovl\t%s, %s(%%rip)\n", dreglist[r],
+                Gsym[id].name);
+            break;
+        default:
+            fatald("Bad type in cgstorglob:", Gsym[id].type);
+        }
     }
     return (r);
 }
 
 // Store a register's value into a local variable
 int cgstorlocal(int r, int id) {
-    switch (Gsym[id].type) {
+
+    if (cgprimsize(Gsym[id].type) == 8) 
+    {
+        fprintf(Outfile, "\tmovq\t%s, %d(%%rbp)\n", reglist[r],
+            Gsym[id].posn);
+    }
+    else
+    {
+    switch (Gsym[id].type) 
+    {
     case P_CHAR:
         fprintf(Outfile, "\tmovb\t%s, %d(%%rbp)\n", breglist[r],
             Gsym[id].posn);
@@ -455,15 +472,9 @@ int cgstorlocal(int r, int id) {
         fprintf(Outfile, "\tmovl\t%s, %d(%%rbp)\n", dreglist[r],
             Gsym[id].posn);
         break;
-    case P_LONG:
-    case P_CHARPTR:
-    case P_INTPTR:
-    case P_LONGPTR:
-        fprintf(Outfile, "\tmovq\t%s, %d(%%rbp)\n", reglist[r],
-            Gsym[id].posn);
-        break;
     default:
         fatald("Bad type in cgstorlocal:", Gsym[id].type);
+    }
     }
     return (r);
 }
@@ -472,13 +483,19 @@ int cgstorlocal(int r, int id) {
 // 0 means no size.
 static int psize[] = { 0, 0, 1, 4, 8, 8, 8, 8, 8 };
 
-// Given a P_XXX type value, return the
-// size of a primitive type in bytes.
-int cgprimsize(int type) {
-    // Check the type is valid
-    if (type < P_NONE || type > P_LONGPTR)
-        fatal("Bad type in cgprimsize()");
-    return (psize[type]);
+// 获取大小 单位 byte
+int cgprimsize(int type) 
+{
+    if (ptrtype(type)) 
+        return (8);
+    switch (type) 
+    {
+    case P_CHAR: return (1);
+    case P_INT:  return (4);
+    case P_LONG: return (8);
+    default: fatald("Bad type in cgprimsize:", type);
+    }
+    return (0);                   // Keep -Wall happy
 }
 
 // Generate a global symbol but not functions
@@ -614,7 +631,10 @@ int cgaddress(int id) {
 
 // Dereference a pointer to get the value it
 // pointing at into the same register
-int cgderef(int r, int type) {
+// 间接寻址
+int cgderef(int r, int type) 
+{
+#if 0 
     switch (type) {
     case P_CHARPTR:
         fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r]);
@@ -627,8 +647,33 @@ int cgderef(int r, int type) {
         break;
     default:
         fatald("Can't cgderef on type:", type);
+}
+    return (r);
+#endif // 0 
+    // Get the type that we are pointing to
+    int newtype = value_at(type);
+
+    // 获取大小 依照大小判断 类型
+    int size = cgprimsize(newtype);
+
+    switch (size) 
+    {
+    case 1:
+        fprintf(Outfile, "\tmovzbq\t(%s), %s\n", reglist[r], reglist[r]);
+        break;
+    case 2:
+        fprintf(Outfile, "\tmovslq\t(%s), %s\n", reglist[r], reglist[r]);
+        break;
+    case 4:
+    case 8:
+        fprintf(Outfile, "\tmovq\t(%s), %s\n", reglist[r], reglist[r]);
+        break;
+    default:
+        fatald("Can't cgderef on type:", type);
     }
     return (r);
+
+
 }
 
 // Store through a dereferenced pointer
