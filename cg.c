@@ -2,9 +2,6 @@
 #include "data.h"
 #include "decl.h"
 
-// Code generator for x86-64
-// Copyright (c) 2019 Warren Toomey, GPL3
-
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
 
@@ -40,12 +37,14 @@ int cgprimsize(int type) {
     return (0);			// Keep -Wall happy
 }
 
-// Given a scalar type, an existing memory offset
-// (which hasn't been allocated to anything yet)
-// and a direction (1 is up, -1 is down), calculate
-// and return a suitably aligned memory offset
-// for this scalar type. This could be the original
-// offset, or it could be above/below the original
+/*
+ Given a scalar type, an existing memory offset
+ (which hasn't been allocated to anything yet)
+ and a direction (1 is up, -1 is down), calculate
+ and return a suitably aligned memory offset
+ for this scalar type. This could be the original
+offset, or it could be above/below the original
+*/
 int cgalign(int type, int offset, int direction) {
     int alignment;
 
