@@ -125,7 +125,7 @@ struct ASTnode* if_statement()
     lparen(); // 匹配 (
     condAST = binexpr(0); // 生成条件AST
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, 0);// 此处是保证了 if(x) {stmt}
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
     // 其中x为 表达式
     // 判断部分不涉及类型转换
 
@@ -143,7 +143,7 @@ struct ASTnode* if_statement()
     }
 
     // 生成AST节点
-    return mkastnode(A_IF, P_NONE, condAST, trueAST, falseAST, 0);
+    return mkastnode(A_IF, P_NONE, condAST, trueAST, falseAST, NULL, 0);
 }
 
 
@@ -158,14 +158,14 @@ struct ASTnode* while_statement()
 
     condAST = binexpr(0);
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, 0);// 此处是保证了 if(x) {stmt}
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
     // 其中x为 表达式
 
     // 判断部分不涉及类型转换
     rparen();// 匹配 )
 
     bodyAST = compound_statement();// {  ... }
-    ASTn = mkastnode(A_WHILE, P_NONE, condAST, NULL, bodyAST, 0);
+    ASTn = mkastnode(A_WHILE, P_NONE, condAST, NULL, bodyAST, NULL, 0);
     return ASTn;
 
 }
@@ -182,7 +182,7 @@ struct ASTnode* for_statement()
 
     condAST = binexpr(0);
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, 0);// 此处是保证了 if(x) {stmt}
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
   // 其中x为 表达式
 
     // 判断部分不涉及类型转换
@@ -193,9 +193,9 @@ struct ASTnode* for_statement()
     bodyAST = compound_statement(); // 分号当前不处理
 
 
-    tree = mkastnode(A_GLUE, P_NONE, bodyAST, NULL, postopAST, 0);
-    tree = mkastnode(A_WHILE, P_NONE, condAST, NULL, tree, 0);
-    return mkastnode(A_GLUE, P_NONE, preopAST, NULL, tree, 0);
+    tree = mkastnode(A_GLUE, P_NONE, bodyAST, NULL, postopAST, NULL, 0);;
+    tree = mkastnode(A_WHILE, P_NONE, condAST, NULL, tree, NULL, 0);
+    return mkastnode(A_GLUE, P_NONE, preopAST, NULL, tree, NULL, 0);
 }
 
 static struct ASTnode* return_statement()
@@ -204,14 +204,14 @@ static struct ASTnode* return_statement()
     int returntype;
     int  functype;
 
-    if (Gsym[Functionid].type == P_VOID)
+    if (Functionid->type == P_VOID)
         fatal("Can't return from a void function");
 
     match(T_RETURN, "return");
     lparen();
 
     tree = binexpr(0);
-    functype = Gsym[Functionid].type;
+    functype = Functionid->type;
     // returntype = tree->type;
     tree = modify_type(tree, functype, 0);
     if (tree == NULL)
@@ -223,13 +223,14 @@ static struct ASTnode* return_statement()
 
 
     // 最终生成A_RETURN
-    tree = mkastunary(A_RETURN, P_NONE, tree, 0);
+    tree = mkastunary(A_RETURN, P_NONE, tree, NULL, 0);
     return tree;
 }
 
 struct ASTnode* single_statement()
 {
     int type;
+    struct symtable* ctype;
     switch (Token.token)
     {
         /*
@@ -241,13 +242,13 @@ struct ASTnode* single_statement()
     case T_LONG:
 
 
-        // The beginning of a variable declaration.
+    // The beginning of a variable declaration.
     // Parse the type and get the identifier.
     // Then parse the rest of the declaration
     // and skip over the semicolon
-        type = parse_type();
+        type = parse_type(&ctype);
         ident();
-        var_declaration(type, 1, 0);// 作者认为当前在chr 23中仅考虑符号表设计 并未考虑到作用域范围 因此默认为1 （全局）
+        var_declaration(type, ctype, C_LOCAL);// 作者认为当前在chr 23中仅考虑符号表设计 并未考虑到作用域范围 因此默认为1 （全局）
         semi();// 匹配分号
         return NULL;
 
@@ -293,7 +294,7 @@ struct ASTnode* compound_statement()
             if (left == NULL)
                 left = tree;
             else
-                left = mkastnode(A_GLUE, P_NONE, left, NULL, tree, 0);
+                left = mkastnode(A_GLUE, P_NONE, left, NULL, tree, NULL, 0);
         }
 
         if (Token.token == T_RBRACE)

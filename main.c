@@ -8,19 +8,15 @@
 #include<string.h>
 #include <errno.h>
 #define _ZZJSTART main
-
+#if  0
 static void init()// 初始化全局变量 
 {
-    Line = 1;
-    Putback = '\n';
-    Globs = 0;  /// 符号表初始位置 为 全局变量
-    Locls = NSYMBOLS - 1; /// 符号表末尾 为局部变量
-    O_dumpAST = 0;
+Line = 1;
+Putback = '\n';
+Globs = 0;  /// 符号表初始位置 为 全局变量
+Locls = NSYMBOLS - 1; /// 符号表末尾 为局部变量
+O_dumpAST = 0;
 }
-// 令牌清单
-char* tokstr[] = { "+", "-", "*", "/", "intlit" };
-
-
 static void scanfile()
 {
     struct token T;
@@ -33,11 +29,16 @@ static void scanfile()
         printf("\n");
     }
 }
+#endif //  0
+
+
+// 令牌清单
+char* tokstr[] = { "+", "-", "*", "/", "intlit" };
 
 void doer(char* p, char* q) // p为输入文件，q为输出文件 
 {
-    struct token* tree;
-    init();
+   // struct token* tree;
+   // init();
 
     if ((Infile = fopen(p, "r")) == NULL) // 未打开文件
     {
@@ -53,10 +54,11 @@ void doer(char* p, char* q) // p为输入文件，q为输出文件
         exit(1);
     }
 
+#if 0
     // For now, ensure that printint() and printchar() are defined
     addglob("printint", P_INT, S_FUNCTION, C_GLOBAL, 0, 0);
     addglob("printchar", P_VOID, S_FUNCTION, C_GLOBAL, 0, 0);
-
+#endif
 
     // 目前使用生成的.s文件进行输出 并在汇编器中执行 最终输出值 具体参考 ch 5
     scan(&Token);			// 判断类型

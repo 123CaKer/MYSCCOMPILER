@@ -17,12 +17,20 @@ FILE* Infile;   // 文件所读取的指针
 FILE* Outfile;  // 输出文件指针
 struct token	Token;  // 全局令牌
 char Text[TEXTLEN + 1];		// 标识符存储 buff
-struct symtable Gsym[NSYMBOLS]; // 全局符号表 存储变量名等
-int Functionid;         // 符号表中当前函数下标识
+//struct symtable Gsym[NSYMBOLS]; // 全局符号表 存储变量名等
+struct symtable* Functionid; 	// 当前函数的符号表下标识符,现在修改为struct symtable* 当前为函数符号链表
 int O_dumpAST;         // 调试输出AST节点
 //int Globsq;  // Position of next free global symbol slot  arm
 int Globs;		// Position of next free global symbol slot
 int Locls;		// Position of next free local symbol slot
+
+// Symbol table lists
+struct symtable* Globhead, * Globtail;	  // Global variables and functions
+struct symtable* Loclhead, * Locltail;	  // Local variables
+struct symtable* Parmhead, * Parmtail;	  // Local parameters
+struct symtable* Membhead, * Membtail;	  // Temp list of struct/union members
+struct symtable* Structhead, * Structtail; // List of struct types
+
 
 
  int O_dumpAST;		// 为真, dump the AST trees

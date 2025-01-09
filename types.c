@@ -148,7 +148,7 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
 
         // Widen to the right
         if (rsize > lsize)
-            return (mkastunary(A_WIDEN, rtype, tree, 0));
+            return (mkastunary(A_WIDEN, rtype, tree, NULL, 0));
     }
 
     // For pointers on the left
@@ -164,12 +164,12 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
     {
 
         // Left is int type, right is pointer type and the size
-    // of the original type is >1: scale the left
+    // of the original type is >1: scale the left、 即扩充左边值大小
         if (inttype(ltype) && ptrtype(rtype))
         {
             rsize = genprimsize(value_at(rtype));
             if (rsize > 1)
-                return (mkastunary(A_SCALE, rtype, tree, rsize));
+                return (mkastunary(A_SCALE, rtype, tree, NULL, rsize));
             else
                 return (tree);		// Size 1, no need to scale
         }
@@ -177,4 +177,13 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
 
 
     return NULL;
+}
+
+// Given a type and a composite type pointer, return
+// the size of this type in bytes
+int typesize(int type, struct symtable* ctype) 
+{
+    if (type == P_STRUCT)// 若为结构体
+        return(ctype->size); /// 返回符号表节点大小
+    return(genprimsize(type));
 }

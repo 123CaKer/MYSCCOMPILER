@@ -27,12 +27,12 @@ void rparen(void);
 
 
 int scan(struct token* t); // 判断令牌内容
-struct ASTnode* mkastnode(int op, int type, struct ASTnode* left, struct ASTnode* mid, struct ASTnode* right, int intvalue);
-struct ASTnode* mkastleaf(int op, int type, int intvalue);// 生成叶子节点
-struct ASTnode* mkastunary(int op, int type, struct ASTnode* left, int intvalue);// 生成左子树AST 
+struct ASTnode* mkastnode(int op, int type, struct ASTnode* left,struct ASTnode* mid, struct ASTnode* right, struct symtable* sym, int intvalue);
+struct ASTnode* mkastleaf(int op, int type, struct symtable* sym, int intvalue);// 生成叶子节点
+struct ASTnode* mkastunary(int op, int type, struct ASTnode* left, struct symtable* sym, int intvalue);// 生成左子树AST 
 int mkastfree(struct ASTnode* ASTNode);
 struct ASTnode* binexpr(int);
-int interpretAST(struct ASTnode* n);
+//int interpretAST(struct ASTnode* n);
 
 // cg.c
 //void generatecode(struct ASTnode* n);
@@ -72,7 +72,7 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label);
 
 //decl.c
 // 声明变量
-void var_declaration(int type,int islocal,int isparam);
+struct symtable* var_declaration(int type, struct symtable* ctype, int class);
 
 //expr.c
 //将 表达式符号转换为AST对应符号
@@ -120,10 +120,14 @@ struct ASTnode* while_statement();
 
 
 // sym.c
-int findglob(char* s);
+struct symtable* findglob(char* s);
 int newglob(void);
-int addglob(char* name, int type, int stype, int endlabel,int ,int size);
+struct symtable* addglob(char* name, int type, struct symtable* ctype,int stype, int size);
 void clear_symtable(void);
+struct symtable* findmember(char* s);
+struct symtable* findstruct(char* s);
+
+
 
 // types.c
 int type_compatible(int* left, int* right, int onlyright);

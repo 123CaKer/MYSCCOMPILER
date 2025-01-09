@@ -94,7 +94,7 @@ static struct ASTnode* expression_list(void)
 
         // Build an A_GLUE AST node with the previous tree as the left child
         // and the new expression as the right child. Store the expression count.
-        tree = mkastnode(A_GLUE, P_NONE, tree, NULL, child, exprcount);// 右边生成expr
+        tree = mkastnode(A_GLUE, P_NONE, tree, NULL, child, NULL, exprcount);// 右边生成expr
 
         // 判断下一个是否为， 或者）
         switch (Token.token)
@@ -145,7 +145,7 @@ struct ASTnode* prefix()
         if (tree->op != A_IDENT && tree->op != A_DEREF)//* operator must be followed by an identifier or *
             fatal("* operator must be followed by an identifier or *");
 
-        tree = mkastunary(A_DEREF, value_at(tree->type), tree, 0);// 间接引用
+        tree = mkastunary(A_DEREF, value_at(tree->type), tree, NULL, 0);// 间接引用
         break;
 
 
@@ -160,7 +160,7 @@ struct ASTnode* prefix()
         // also widen this to int so that it's signed
         tree->rvalue = 1;
         tree = modify_type(tree, P_INT, 0);
-        tree = mkastunary(A_NEGATE, tree->type, tree, 0);
+        tree = mkastunary(A_NEGATE, tree->type, tree, NULL, 0);
         break;
 
 
@@ -172,7 +172,7 @@ struct ASTnode* prefix()
 
         // 生成子节点
         tree->rvalue = 1;
-        tree = mkastunary(A_INVERT, tree->type, tree, 0);
+        tree = mkastunary(A_INVERT, tree->type, tree, NULL, 0);
         break;
     case T_LOGNOT:
         // Get the next token and parse it
@@ -183,7 +183,7 @@ struct ASTnode* prefix()
         // Prepend a A_LOGNOT operation to the tree and
         // make the child an rvalue.
         tree->rvalue = 1;
-        tree = mkastunary(A_LOGNOT, tree->type, tree, 0);
+        tree = mkastunary(A_LOGNOT, tree->type, tree, NULL, 0);
         break;
     case T_INC: // 自增
         // Get the next token and parse it
@@ -196,7 +196,7 @@ struct ASTnode* prefix()
             fatal("++ operator must be followed by an identifier");
 
         // Prepend an A_PREINC operation to the tree
-        tree = mkastunary(A_PREINC, tree->type, tree, 0);
+        tree = mkastunary(A_PREINC, tree->type, tree, NULL, 0);
         break;
     case T_DEC: // 自减
         // Get the next token and parse it
@@ -209,7 +209,7 @@ struct ASTnode* prefix()
             fatal("-- operator must be followed by an identifier");
 
         // Prepend an A_PREDEC operation to the tree
-        tree = mkastunary(A_PREDEC, tree->type, tree, 0);
+        tree = mkastunary(A_PREDEC, tree->type, tree, NULL, 0);
         break;
     default:
         tree = primary();
@@ -224,43 +224,43 @@ struct ASTnode* prefix()
 static struct ASTnode* postfix(void)
 {
     struct ASTnode* n;
-    int id;
+    struct symtable* varptr; // 符号表指针
 
     // Scan in the next token to see if we have a postfix expression
     scan(&Token);
 
-    // 函数调用
+    // Function call
     if (Token.token == T_LPAREN)
         return (funccall());
 
-    // 数组访问
+    // An array reference
     if (Token.token == T_LBRACKET)
         return (array_access());
 
-    // 此处判断符号表中是否存在
-    id = findsymbol(Text);
-    if (id == -1 || Gsym[id].stype != S_VARIABLE)
+    // A variable. Check that the variable exists.
+    if ((varptr = findsymbol(Text)) == NULL || varptr->stype != S_VARIABLE)
         fatals("Unknown variable", Text);
 
-    switch (Token.token) // 这里无需进行判断是否ident
+    switch (Token.token)
     {
         // Post-increment: skip over the token
     case T_INC:
         scan(&Token);
-        n = mkastleaf(A_POSTINC, Gsym[id].type, id);
+        n = mkastleaf(A_POSTINC, varptr->type, varptr, 0);
         break;
 
         // Post-decrement: skip over the token
     case T_DEC:
         scan(&Token);
-        n = mkastleaf(A_POSTDEC, Gsym[id].type, id);
+        n = mkastleaf(A_POSTDEC, varptr->type, varptr, 0);
         break;
 
         // Just a variable reference
     default:
-        n = mkastleaf(A_IDENT, Gsym[id].type, id);
+        n = mkastleaf(A_IDENT, varptr->type, varptr, 0);
     }
     return (n);
+
 }
 //将 令牌转换为AST对应符号
 int arithop(int tokentype)
@@ -434,7 +434,7 @@ struct ASTnode* binexpr(int p)
 
         }
         // 生成ast节点 保证一致
-        left = mkastnode(arithop(tokentype), left->type, left, NULL, right, 0);
+        left = mkastnode(arithop(tokentype), left->type, left, NULL, right, NULL, 0);
 
 
         tokentype = Token.token;  // 更新 token类型
@@ -453,25 +453,28 @@ struct ASTnode* binexpr(int p)
 static struct ASTnode* funccall()
 {
     struct ASTnode* tree;
-    int id;
+    struct symtable* funcptr;
 
-    // Check that the identifier has been defined,
-    // then make a leaf node for it. XXX Add structural type test
-    if ((id = findsymbol(Text)) == -1 || Gsym[id].stype != S_FUNCTION)
+    // Check that the identifier has been defined as a function,
+    // then make a leaf node for it.
+    if ((funcptr = findsymbol(Text)) == NULL || funcptr->stype != S_FUNCTION)
     {
         fatals("Undeclared function", Text);
     }
-    //  匹配'('
+    // Get the '('
     lparen();
 
-    //参数表达式解析
+    // 参数表达式解析
     tree = expression_list();
+
+    // XXX Check type of each argument against the function's prototype
 
     // Build the function call AST node. Store the
     // function's return type as this node's type.
     // Also record the function's symbol-id
-    tree = mkastunary(A_FUNCCALL, Gsym[id].type, tree, id);
+    tree = mkastunary(A_FUNCCALL, funcptr->type, tree, funcptr, 0);
 
+    // Get the ')'
     rparen();
     return (tree);
 }
@@ -481,31 +484,21 @@ static struct ASTnode* funccall()
 static struct ASTnode* array_access(void) 
 {
     struct ASTnode* left, * right;
-    int id;
-     
-      /*
-            a[1] *(a+1)
+    struct symtable* aryptr;
 
-                        A_DEREF
-                       /
-                     A_ADD
-                    /     \
-                (a)A_ADDR  1
-                     
-                     
-      */
-
-    // 判断是否为数组
-    if ((id = findsymbol(Text)) == -1 || Gsym[id].stype != S_ARRAY)
+     // 判断是否是array
+    // Check that the identifier has been defined as an array
+    // then make a leaf node for it that points at the base
+    if ((aryptr = findsymbol(Text)) == NULL || aryptr->stype != S_ARRAY)
     {
         fatals("Undeclared array", Text);
     }
-    left = mkastleaf(A_ADDR, Gsym[id].type, id);
+    left = mkastleaf(A_ADDR, aryptr->type, aryptr, 0);
 
     // Get the '['
     scan(&Token);
 
-    // 右边为表达式 中括号内
+    // Parse the following expression
     right = binexpr(0);
 
     // Get the ']'
@@ -521,8 +514,8 @@ static struct ASTnode* array_access(void)
     // Return an AST tree where the array's base has the offset
     // added to it, and dereference the element. Still an lvalue
     // at this point.
-    left = mkastnode(A_ADD, Gsym[id].type, left, NULL, right, 0);
-    left = mkastunary(A_DEREF, value_at(left->type), left, 0);
+    left = mkastnode(A_ADD, aryptr->type, left, NULL, right, NULL, 0);
+    left = mkastunary(A_DEREF, value_at(left->type), left, NULL, 0);
     return (left);
 }
 
@@ -538,15 +531,15 @@ static struct ASTnode* array_access(void)
          // For a STRLIT token, generate the assembly for it.
          // Then make a leaf AST node for it. id is the string's label.
          id = genglobstr(Text); // 生成 汇编
-         n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), id);// 生成叶子节点
+         n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, id); // 生成叶子节点
          break;
 
      case T_INTLIT: //数字值
 
          if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
-             n = mkastleaf(A_INTLIT, P_CHAR, Token.intvalue);
+             n = mkastleaf(A_INTLIT, P_CHAR, NULL, Token.intvalue);
          else                                                // int型
-             n = mkastleaf(A_INTLIT, P_INT, Token.intvalue);
+             n = mkastleaf(A_INTLIT, P_INT, NULL, Token.intvalue);
          break;
 
      case T_IDENT:

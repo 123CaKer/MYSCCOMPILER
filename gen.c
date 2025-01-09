@@ -106,18 +106,18 @@ static int gen_funccall(struct ASTnode* n)
         // 右边生成
         reg = genAST(gluetree->right, NOLABEL, gluetree->op);
         // Copy this into the n'th function parameter: size is 1, 2, 3, ...
-        cgcopyarg(reg, gluetree->v.size);
+        cgcopyarg(reg, gluetree->size);
         // Keep the first (highest) number of arguments
-        if (numargs == 0) numargs = gluetree->v.size;
+        if (numargs == 0)
+            numargs = gluetree->size;
         genfreeregs();
         gluetree = gluetree->left;
     }
 
     // Call the function, clean up the stack (based on numargs),
     // and return its result
-    return (cgcall(n->v.id, numargs));
+    return (cgcall(n->sym, numargs));
 }
-
 
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用寄存器对应下标
@@ -146,9 +146,9 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
 
 
     case A_FUNCTION:
-        cgfuncpreamble(n->v.id);  // 类似之前的cgpreamble生成函数前置码
+        cgfuncpreamble(n->sym);  // 类似之前的cgpreamble生成函数前置码
         genAST(n->left, NOLABEL, n->op);
-        cgfuncpostamble(n->v.id); // 类似之前的cgpostamble生成函数前置码
+        cgfuncpostamble(n->sym); // 类似之前的cgpostamble生成函数前置码
         return NOREG;
 
     }
@@ -169,9 +169,9 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
     case A_DIVIDE:
         return cgdiv(leftreg, rightreg);
     case A_INTLIT:
-        return (cgloadint(n->v.intvalue, n->type)); // 返回分配的寄存器下标号
+        return (cgloadint(n->intvalue, n->type)); // 返回分配的寄存器下标号
     case A_STRLIT:
-        return (cgloadglobstr(n->v.id));
+        return (cgloadglobstr(n->intvalue));
     case A_AND:
         return (cgand(leftreg, rightreg));
     case A_OR:
@@ -194,12 +194,13 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
       // or we are being dereferenced
         if (n->rvalue || parentASTop == A_DEREF)
         {
-            if (Gsym[n->v.id].class == C_GLOBAL)
+            if (n->sym->class == C_GLOBAL)
             {
-                return (cgloadglob(n->v.id, n->op));
+                return (cgloadglob(n->sym, n->op));
             }
-            else {
-                return (cgloadlocal(n->v.id, n->op));// C_PARAM和C_LOCAL
+            else
+            {
+                return (cgloadlocal(n->sym, n->op));// C_PARAM和C_LOCAL
             }
         }
         else
@@ -208,7 +209,7 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         /*
     case A_LVIDENT:
         // printf(" the reg is %d\n",reg);
-        return cgstorglob(reg, n->v.id);
+        return cgstorglob(reg, n->sym);
         */
         // 比较判断 传入的值为左右寄存器编号
 
@@ -229,13 +230,13 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
 
     case A_ASSIGN:
         // Are we assigning to an identifier or through a pointer?
-        switch (n->right->op) 
+        switch (n->right->op)
         {
         case A_IDENT:
-            if (Gsym[n->right->v.id].class == C_GLOBAL)
-                return (cgstorglob(leftreg, n->right->v.id));
-            else // C_PARAM和C_LOCAL
-                return (cgstorlocal(leftreg, n->right->v.id));
+            if (n->right->sym->class == C_GLOBAL)
+                return (cgstorglob(leftreg, n->right->sym));
+            else
+                return (cgstorlocal(leftreg, n->right->sym));
         case A_DEREF:
             return (cgstorderef(leftreg, rightreg, n->right->type));
         default:
@@ -262,12 +263,8 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
     case A_RETURN:
         cgreturn(leftreg, Functionid);
         return (NOREG);
-
-    case A_FUNCCALL:
-        return (cgcall(leftreg, n->v.id));
-
     case A_ADDR:
-        return (cgaddress(n->v.id));
+        return (cgaddress(n->sym));
     case A_DEREF:
 
         //  return (cgderef(leftreg, n->left->type));
@@ -280,7 +277,7 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
     case A_SCALE:
         // Small optimisation: use shift if the
         // scale value is a known power of two
-        switch (n->v.size)
+        switch (n->size)
         {
         case 2:
             return(cgshlconst(leftreg, 1));
@@ -290,23 +287,35 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
             return(cgshlconst(leftreg, 3));
         default:
             // 分配数组int a[10]  int * 10
-            rightreg = cgloadint(n->v.size, P_INT);
+            rightreg = cgloadint(n->size, P_INT);
             return cgmul(leftreg, rightreg); //l = l * r;
         }
     case A_POSTINC:
         // Load the variable's value into a register,
         // then increment it
-        return (cgloadglob(n->v.id, n->op));
+        if (n->sym->class == C_GLOBAL)
+            return (cgloadglob(n->sym, n->op));
+        else
+            return (cgloadlocal(n->sym, n->op));
     case A_POSTDEC:
         // Load the variable's value into a register,
         // then decrement it
-        return (cgloadglob(n->v.id, n->op));
+        if (n->sym->class == C_GLOBAL)
+            return (cgloadglob(n->sym, n->op));
+        else
+            return (cgloadlocal(n->sym, n->op));
     case A_PREINC:
         // Load and increment the variable's value into a register
-        return (cgloadglob(n->left->v.id, n->op));
+        if (n->left->sym->class == C_GLOBAL)
+            return (cgloadglob(n->left->sym, n->op));
+        else
+            return (cgloadlocal(n->left->sym, n->op));
     case A_PREDEC:
         // Load and decrement the variable's value into a register
-        return (cgloadglob(n->left->v.id, n->op));
+        if (n->left->sym->class == C_GLOBAL)
+            return (cgloadglob(n->left->sym, n->op));
+        else
+            return (cgloadlocal(n->left->sym, n->op));
     case A_NEGATE:
         return (cgnegate(leftreg));
     case A_INVERT:
@@ -324,6 +333,7 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
 
     return NOREG;
 }
+
 
 int genlabel(void)
 {
@@ -380,3 +390,8 @@ int gengetlocaloffset(int type, int isparam)
     return (cggetlocaloffset(type, isparam));
 }
 #endif
+
+int genalign(int type, int offset, int direction) 
+{
+    return (cgalign(type, offset, direction));
+}
