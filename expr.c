@@ -572,8 +572,10 @@ struct ASTnode* member_access(int withpointer)
            /     \     t->a t.a == *（t+a的位置）
          A_ADD
        /      \
-  A_IDENT或  A_INTLIT
+  A_IDENT或  A_INTLIT m->posn
     A_ADDR
+
+    从下往上生成AST
     */
 
     // Find the matching member's name in the type
