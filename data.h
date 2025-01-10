@@ -30,6 +30,7 @@ struct symtable* Loclhead, * Locltail;	  // Local variables
 struct symtable* Parmhead, * Parmtail;	  // Local parameters
 struct symtable* Membhead, * Membtail;	  // Temp list of struct/union members
 struct symtable* Structhead, * Structtail; // List of struct types
+struct symtable* Unionhead, * Uniontail;   // List of union types
 
 
 

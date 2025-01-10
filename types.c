@@ -183,7 +183,8 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
 // the size of this type in bytes
 int typesize(int type, struct symtable* ctype) 
 {
-    if (type == P_STRUCT)// 若为结构体
+    if (type == P_STRUCT|| type == P_UNION)// 若为结构体或者联合体
         return(ctype->size); /// 返回符号表节点大小
+
     return(genprimsize(type));
 }

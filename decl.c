@@ -216,7 +216,7 @@ struct ASTnode* function_declaration(int type)
 	return (mkastunary(A_FUNCTION, type, tree, oldfuncsym, endlabel));
 }
 
-
+#if 0
 // Parse struct declarations. Either find an existing
 // struct declaration, or build a struct symbol table
 // entry and return its pointer.
@@ -294,7 +294,7 @@ struct
 
 
 // 声明函数 对应BNF参照笔记
-#if 0
+
 struct ASTnode* function_declaration(int type)
 {
 	struct ASTnode* tree, * finalstmt;
@@ -361,7 +361,11 @@ int parse_type(struct symtable** ctype)
 		break;
 	case T_STRUCT:
 		typer = P_STRUCT;
-		*ctype = struct_declaration();
+		*ctype = composite_declaration(P_STRUCT);
+		break;
+	case T_UNION:
+		typer = P_UNION;
+		*ctype = composite_declaration(P_UNION);
 		break;
 	default:
 		fatald("Illegal type, token", Token.token);
@@ -383,7 +387,79 @@ int parse_type(struct symtable** ctype)
 
 }
 
+// Parse composite type declarations: structs or unions.
+// Either find an existing struct/union declaration, or build
+// a struct/union symbol table entry and return its pointer.
+struct symtable* composite_declaration(int type) 
+{
+	struct symtable* ctype = NULL;// 符号表类型 C_***
+	struct symtable* m;
+	int offset;
 
+	// Skip the struct/union keyword
+	// 扫描下一个
+	scan(&Token);
+
+	// See if there is a following struct/union name
+	if (Token.token == T_IDENT)
+	{
+		// Find any matching composite type
+		if (type == P_STRUCT)
+			ctype = findstruct(Text);
+		else
+			ctype = findunion(Text);
+		scan(&Token);
+	}
+	// If the next token isn't an LBRACE , this is
+	// the usage of an existing struct/union type.
+	// Return the pointer to the type.
+	if (Token.token != T_LBRACE) {
+		if (ctype == NULL)
+			fatals("unknown struct/union type", Text);
+		return (ctype);
+	}
+	// Ensure this struct/union type hasn't been
+	// previously defined
+	if (ctype)
+		fatals("previously defined struct/union", Text);
+
+	// Build the composite type and skip the left brace
+	if (type == P_STRUCT)
+		ctype = addstruct(Text, P_STRUCT, NULL, 0, 0);
+	else
+		ctype = addunion(Text, P_UNION, NULL, 0, 0);
+	scan(&Token);
+
+	// Scan in the list of members and attach
+	// to the struct type's node
+	var_declaration_list(NULL, C_MEMBER, T_SEMI, T_RBRACE);
+	rbrace();
+	ctype->member = Membhead;
+	Membhead = Membtail = NULL;
+
+	// Set the offset of the initial member
+	// and find the first free byte after it
+	m = ctype->member;
+	m->posn = 0;
+	offset = typesize(m->type, m->ctype);
+
+	// Set the position of each successive member in the composite type
+	// Unions are easy. For structs, align the member and find the next free byte
+	for (m = m->next; m != NULL; m = m->next)
+	{
+		// Set the offset for this member
+		if (type == P_STRUCT)
+			m->posn = genalign(m->type, offset, 1);
+		else
+			m->posn = 0;
+
+		// Get the offset of the next free byte after this member
+		offset += typesize(m->type, m->ctype);
+	}
+	// Set the overall size of the composite type
+	ctype->size = offset;
+	return (ctype);// 返回当前符号表节点
+}
 
 
 
@@ -411,7 +487,7 @@ void global_declarations(void)
 		// might be a ';'. Loop back if it is. XXX. I'm
 		// not happy with this as it allows "struct fred;"
 		// as an accepted statement
-		if (type == P_STRUCT && Token.token == T_SEMI)
+		if ((type == P_STRUCT || type == P_UNION) && Token.token == T_SEMI)
 		{
 			scan(&Token);
 			continue;

@@ -38,7 +38,7 @@ enum
 	T_INTLIT, T_STRLIT, T_SEMI, T_IDENT,
 	T_LBRACE, T_RBRACE, T_LPAREN, T_RPAREN,
 	T_LBRACKET, T_RBRACKET,T_COMMA,T_DOT,
-	T_ARROW
+	T_ARROW,T_UNION
 };
 
 // AST 节点类型
@@ -60,7 +60,8 @@ enum
 {
 	P_NONE//当前AST节点并不是表达式或者一种变量 例如 A_GLUE 
 	
-	, P_VOID = 16, P_CHAR = 32, P_INT = 48, P_LONG = 64, P_STRUCT = 80
+	, P_VOID = 16, P_CHAR = 32, P_INT = 48, P_LONG = 64, P_STRUCT = 80,
+	P_UNION=96
 };
 
 
@@ -105,7 +106,8 @@ enum {
 	C_LOCAL	,		//  局部
 	C_STRUCT,			// 结构体
 	C_PARAM,          // Locally visible function parameter
-	C_MEMBER			// Member of a struct or union
+	C_MEMBER,			// Member of a struct or union
+	C_UNION			// A union
 };
 
 // 符号表

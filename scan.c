@@ -378,6 +378,9 @@ int scan(struct token* t)
             case T_STRUCT:
                 t->token = T_STRUCT;
                 break;
+            case T_UNION:
+                t->token = T_UNION;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -452,6 +455,9 @@ static int keyword(char* s)  //获取关键字的类型值
     case 's':
         if (!strcmp(s, "struct"))
             return (T_STRUCT);
+    case 'u':
+        if (!strcmp(s, "union"))
+            return (T_UNION);
     }
     return 0;
 }
