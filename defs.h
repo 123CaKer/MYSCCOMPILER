@@ -12,7 +12,7 @@
 
 
 
-// 令牌类型
+// 令牌类型 具体可查阅scan()
 enum 
 {
 	T_EOF,
@@ -37,7 +37,8 @@ enum
 	// Structural tokens
 	T_INTLIT, T_STRLIT, T_SEMI, T_IDENT,
 	T_LBRACE, T_RBRACE, T_LPAREN, T_RPAREN,
-	T_LBRACKET, T_RBRACKET,T_COMMA
+	T_LBRACKET, T_RBRACKET,T_COMMA,T_DOT,
+	T_ARROW
 };
 
 // AST 节点类型

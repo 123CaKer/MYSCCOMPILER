@@ -29,11 +29,12 @@ static void scanfile()
         printf("\n");
     }
 }
+// 令牌清单
+char* tokstr[] = { "+", "-", "*", "/", "intlit" };
+
 #endif //  0
 
 
-// 令牌清单
-char* tokstr[] = { "+", "-", "*", "/", "intlit" };
 
 void doer(char* p, char* q) // p为输入文件，q为输出文件 
 {

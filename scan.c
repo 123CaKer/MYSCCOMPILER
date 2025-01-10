@@ -183,11 +183,18 @@ int scan(struct token* t)
         {
             t->token = T_DEC;// ×Ô¼õ
         }
+        else if (c == '>')
+        {
+            t->token = T_ARROW;// ->
+        }
         else 
         {
             putback(c);
             t->token = T_MINUS;
         }
+        break;
+    case '.':
+        t->token = T_DOT;// .³ÉÔ±
         break;
     case '*':
         t->token = T_STAR;

@@ -84,7 +84,7 @@ struct ASTnode* binexpr(int p);
 
 struct ASTnode* funccall(void); //函数调用
 struct ASTnode* array_access(void); //数组访问
-
+struct ASTnode* member_access(int withpointer);
 
 //expr2.c
 // 返回乘性表达式
