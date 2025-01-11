@@ -3,6 +3,7 @@
 #include "decl.h"
 
 
+
 // 声明变量 type 为变量类型 int char  long
 // variable_declaration: type identifier ';'
 //        | type identifier '[' INTLIT ']' ';'
@@ -336,6 +337,129 @@ struct ASTnode* function_declaration(int type)
 }
 #endif
 
+//解析enum声明
+void enum_declaration(void)
+{
+	struct symtable* etype = NULL;
+	char* name = NULL;
+	int intval = 0;
+
+	// Skip the enum keyword.
+	scan(&Token);
+
+	// If there's a following enum type name, get a
+	// pointer to any existing enum type node.
+  // 若当前为标识符 enum aaa{}中的aaa
+	if (Token.token == T_IDENT)
+	{
+		etype = findenumtype(Text);
+		name = strdup(Text);        // As it gets tromped soon 复制Text字符串
+		/*We only have one global variable, Text,
+		to hold a scanned-in word, and we
+		have to be able to parse enum foo var1.
+		If we scan in the token after the foo,
+		we will lose the foo string.
+		So we need to strdup() this.
+		strdup() is a dupliacting function*/
+		//scan(&Token);
+	}
+	// We do have an LBRACE. Skip it
+	scan(&Token);
+
+	// If the next token isn't a LBRACE, check
+ // that we have an enum type name, then return
+	if (Token.token != T_LBRACE)
+	{
+		if (etype == NULL)
+			fatals("undeclared enum type:", name);
+		return;
+	}
+
+	// We do have an LBRACE. Skip it
+	scan(&Token);
+
+	// If we have an enum type name, ensure that it
+	// hasn't been declared before.
+	if (etype != NULL)
+		fatals("enum type redeclared:", etype->name);
+	else
+		// Build an enum type node for this identifier
+		etype = addenum(name, C_ENUMTYPE, 0);
+
+	// Loop to get all the enum values
+	while (1)
+	{
+		// Ensure we have an identifier
+		// Copy it in case there's an int literal coming up
+		ident();// 循环匹配标识符
+		name = strdup(Text);// 从标识符复制到name
+
+		// Ensure this enum value hasn't been declared before
+		etype = findenumval(name);
+		if (etype != NULL)
+			fatals("enum value redeclared:", Text);
+
+		// If the next token is an '=', skip it and
+		// get the following int literal
+		if (Token.token == T_ASSIGN)
+		{
+			scan(&Token);
+			if (Token.token != T_INTLIT)
+				fatal("Expected int literal after '='");
+			intval = Token.intvalue;// 当前为T_INTLIT，intvalue为对应的数字
+			scan(&Token);
+		}
+		// Build an enum value node for this identifier.
+		// Increment the value for the next enum identifier.
+		etype = addenum(name, C_ENUMVAL, intval++);
+
+		// Bail out on a right curly bracket, else get a comma
+		if (Token.token == T_RBRACE)
+			break;
+		else
+			comma(); // 匹配逗号
+	}
+	scan(&Token);			// Skip over the right curly bracket
+}
+
+
+// 解析typedef
+// Parse a typedef declaration and return the type
+// and ctype that it represents
+int typedef_declaration(struct symtable** ctype)
+{
+	int type;
+
+	// Skip the typedef keyword.
+	scan(&Token);
+
+	// Get the actual type following the keyword
+	type = parse_type(ctype);
+
+	// See if the typedef identifier already exists
+	if (findtypedef(Text) != NULL)
+		fatals("redefinition of typedef", Text);
+
+	// It doesn't exist so add it to the typedef list
+	addtypedef(Text, type, *ctype, 0, 0);
+	scan(&Token);
+	return (type);
+}
+
+// Given a typedef name, return the type it represents
+int type_of_typedef(char* name, struct symtable** ctype) 
+{
+	struct symtable* t;
+
+	// Look up the typedef in the list
+	t = findtypedef(name);
+	if (t == NULL)
+		fatals("unknown type", name);
+	scan(&Token);
+	*ctype = t->ctype;
+	return (t->type);
+}
+
 
 // 解析变量声明 符号表
 int parse_type(struct symtable** ctype)
@@ -366,6 +490,20 @@ int parse_type(struct symtable** ctype)
 	case T_UNION:
 		typer = P_UNION;
 		*ctype = composite_declaration(P_UNION);
+		break;
+	case T_ENUM:
+		typer = P_INT;             // 枚举通常为int类型
+		enum_declaration();       // 枚举完成后，必然扫描到；
+		if (Token.token == T_SEMI)// 扫描到分号 说明到结尾 
+			typer = -1;          
+		break;
+	case T_TYPEDEF: // 其处理和之前的枚举类似
+		typer = typedef_declaration(ctype);
+		if (Token.token == T_SEMI)
+			typer = -1;
+		break;
+	case T_IDENT:
+		typer = type_of_typedef(Text, ctype);
 		break;
 	default:
 		fatald("Illegal type, token", Token.token);
@@ -465,6 +603,8 @@ struct symtable* composite_declaration(int type)
 
 
 
+
+
 // Parse one or more global declarations, either
 // variables, functions or structs
 void global_declarations(void)
@@ -482,16 +622,29 @@ void global_declarations(void)
 		// Get the type
 		type = parse_type(&ctype);
 
-		// We might have just parsed a struct declaration
-		// with no associated variable. The next token
-		// might be a ';'. Loop back if it is. XXX. I'm
-		// not happy with this as it allows "struct fred;"
-		// as an accepted statement
-		if ((type == P_STRUCT || type == P_UNION) && Token.token == T_SEMI)
+		
+
+		// We might have just parsed a struct, union or enum
+		// declaration with no associated variable.
+		// The next token might be a ';'. Loop back if it is.
+		// XXX: I'm not happy with this as it allows
+		// "struct fred;" as an accepted statement
+			/*
+				要么是声明 ，要么是枚举完成
+			*/
+		// 个人认为需要修改的地方
+		if (type == -1)// 枚举方面的
+		{
+			semi();
+			continue;
+		}
+		else if ((type == P_STRUCT || type == P_UNION) && Token.token == T_SEMI)// struct 或者 union
 		{
 			scan(&Token);
 			continue;
 		}
+
+
 		// We have to read past the identifier
 		// to see either a '(' for a function declaration
 		// or a ',' or ';' for a variable declaration.
@@ -531,6 +684,11 @@ void global_declarations(void)
 		}
 	}
 }
+
+
+
+
+
 
 
 

@@ -31,6 +31,8 @@ struct symtable* Parmhead, * Parmtail;	  // Local parameters
 struct symtable* Membhead, * Membtail;	  // Temp list of struct/union members
 struct symtable* Structhead, * Structtail; // List of struct types
 struct symtable* Unionhead, * Uniontail;   // List of union types
+struct symtable* Enumhead, * Enumtail;    // List of enum types and values
+struct symtable* Typehead, * Typetail;    // List of typedefs
 
 
 

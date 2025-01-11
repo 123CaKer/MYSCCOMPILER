@@ -107,6 +107,23 @@ struct symtable* addunion(char* name, int type, struct symtable* ctype,
 }
 
 
+// Add an enum type or value to the enum list.
+// Class is C_ENUMTYPE or C_ENUMVAL.
+// Use posn to store the int value.
+struct symtable* addenum(char* name, int class, int value) {
+    struct symtable* sym = newsym(name, P_INT, NULL, 0, class, 0, value);
+    appendsym(&Enumhead, &Enumtail, sym);
+    return (sym);
+}
+
+// Add a typedef to the typedef list
+struct symtable* addtypedef(char* name, int type, struct symtable* ctype,
+    int stype, int size) {
+    struct symtable* sym = newsym(name, type, ctype, stype, C_TYPEDEF, size, 0);
+    appendsym(&Typehead, &Typetail, sym);
+    return (sym);
+}
+
 // Search for a symbol in a specific list.
 // Return a pointer to the found node or NULL if not found.
 static struct symtable* findsyminlist(char* s, struct symtable* list) {
@@ -173,6 +190,24 @@ struct symtable* findunion(char* s) {
     return (findsyminlist(s, Unionhead));
 }
 
+
+// Find an enum type in the enum list
+// Return a pointer to the found node or NULL if not found.
+struct symtable* findenumtype(char* s) {
+    return (findsyminlist(s, Enumhead, C_ENUMTYPE));
+}
+
+// Find an enum value in the enum list
+// Return a pointer to the found node or NULL if not found.
+struct symtable* findenumval(char* s) {
+    return (findsyminlist(s, Enumhead, C_ENUMVAL));
+}
+
+// Find a type in the tyedef list
+// Return a pointer to the found node or NULL if not found.
+struct symtable* findtypedef(char* s) {
+    return (findsyminlist(s, Typehead, 0));
+}
 
 // Reset the contents of the symbol table
 void clear_symtable(void) {

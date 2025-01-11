@@ -47,6 +47,10 @@ void rparen(void)
     match(T_RPAREN, ")");
 }
 
+void comma(void)
+{
+    match(T_COMMA, ",");
+}
 
 // ´íÎóÐÅÏ¢
 void fatal(char* s)

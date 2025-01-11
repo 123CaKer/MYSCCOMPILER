@@ -13,8 +13,7 @@
 
 
 // 令牌类型 具体可查阅scan()
-enum 
-{
+enum {
 	T_EOF,
 
 	// Binary operators
@@ -32,13 +31,14 @@ enum
 	T_VOID, T_CHAR, T_INT, T_LONG,
 
 	// Other keywords
-	T_IF, T_ELSE, T_WHILE, T_FOR, T_RETURN, T_STRUCT,
+	T_IF, T_ELSE, T_WHILE, T_FOR, T_RETURN,
+	T_STRUCT, T_UNION, T_ENUM, T_TYPEDEF,
 
 	// Structural tokens
 	T_INTLIT, T_STRLIT, T_SEMI, T_IDENT,
 	T_LBRACE, T_RBRACE, T_LPAREN, T_RPAREN,
-	T_LBRACKET, T_RBRACKET,T_COMMA,T_DOT,
-	T_ARROW,T_UNION
+	T_LBRACKET, T_RBRACKET, T_COMMA, T_DOT,
+	T_ARROW
 };
 
 // AST 节点类型
@@ -50,7 +50,7 @@ enum {
 	A_IF, A_WHILE, A_FUNCTION, A_WIDEN, A_RETURN,
 	A_FUNCCALL, A_DEREF, A_ADDR, A_SCALE,
 	A_PREINC, A_PREDEC, A_POSTINC, A_POSTDEC,
-	A_NEGATE, A_INVERT, A_LOGNOT, A_TOBOOL
+	A_NEGATE, A_INVERT, A_LOGNOT, A_TOBOOL,
 };
 // 变量类型 类型匹配
 // Primitive types. The bottom 4 bits is an integer
@@ -100,38 +100,40 @@ struct ASTnode
 
 };
 
-// 存储类型 
+// 符号表存储类型 
 enum {
 	C_GLOBAL = 1,		// 全局
 	C_LOCAL	,		//  局部
 	C_STRUCT,			// 结构体
 	C_PARAM,          // Locally visible function parameter
 	C_MEMBER,			// Member of a struct or union
-	C_UNION			// A union
+	C_UNION,			// A union
+	C_ENUMTYPE,			// A named enumeration type
+	C_ENUMVAL,			// A named enumeration value
+	C_TYPEDEF			// A named typedef
 };
 
 // 符号表
 struct symtable
 {
 	char* name;                   // 符号名
-	int type;                     // 初等基本类型
-	struct symtable* ctype;	    // 若为 struct/union, 指向其类型  struct/union,
+	int type;                     // 初等基本类型 int char long void P_***
+	struct symtable* ctype;	     // 若为 struct/union, 指向其类型  struct/union, C_*** 为 符号表存储类型 
 	int stype;                    // 变量还是函数			
 	int class;                    // 符号表存储类型 全局还是局部
 	union 
 	{
-		int nelems;                 // For functions, # of params
+		int nelems;                 // For functions, # of params 形参个数
 		int posn;                  //  局部变量在符号表的位置 为-- 
 	};
 	union 
 	{
 		int size;			// 符号表中的符号数量
-		int endlabel;		// For functions, the end label
+		int endlabel;		// For functions, the end label 
 	};
 	struct symtable* next;	    // Next symbol in one list
-	struct symtable* member;	// First member of a function, struct,
-	// union or enum
-	                            // 函数的形参 结构体成员
+	struct symtable* member;	// First member of a function, struct,union or enum
+	                            // 函数的形参 结构体成员 第一个
 };
 
 

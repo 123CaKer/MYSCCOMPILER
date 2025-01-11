@@ -381,6 +381,12 @@ int scan(struct token* t)
             case T_UNION:
                 t->token = T_UNION;
                 break;
+            case T_TYPEDEF:
+                t->token = T_TYPEDEF;
+                break;
+            case T_ENUM:
+                t->token = T_ENUM;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -434,6 +440,8 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'e':
         if (!strcmp(s, "else"))
             return T_ELSE;
+        else if (!strcmp(s, "enum"))
+            return (T_ENUM);
     case 'w':
         if (!strcmp(s, "while"))
             return T_WHILE;
@@ -458,6 +466,10 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'u':
         if (!strcmp(s, "union"))
             return (T_UNION);
+    case 't':
+        if (!strcmp(s, "typedef"))
+            return (T_TYPEDEF);
+   
     }
     return 0;
 }
