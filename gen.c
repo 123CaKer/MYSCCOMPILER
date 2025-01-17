@@ -4,7 +4,7 @@
 
 
 // 生成 if  if_else 从句 
-static int genIFAST(struct ASTnode* n)
+static int genIFAST(struct ASTnode* n, int looptoplabel, int loopendlabel)
 {
     int Lfalse, Lend;
 
@@ -25,11 +25,11 @@ static int genIFAST(struct ASTnode* n)
 
 
 
-    genAST(n->left, Lfalse, n->op);// Condition and jump to Lfalse
+     genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);;// Condition and jump to Lfalse
     genfreeregs();
 
     //  否则真分支 
-    genAST(n->mid, NOLABEL, n->op);
+    genAST(n->mid, NOLABEL, looptoplabel, loopendlabel, n->op);
     genfreeregs();
 
 
@@ -42,7 +42,7 @@ static int genIFAST(struct ASTnode* n)
     //若假存在 生成假分支语句 并跳转
     if (n->right)
     {
-        genAST(n->right, NOLABEL, n->op);
+        genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
         genfreeregs();
         cglabel(Lend);
     }
@@ -62,10 +62,10 @@ static int genWHILE(struct ASTnode* n)
     cglabel(Lstart);
 
 
-    genAST(n->left, Lend, n->op);
+    genAST(n->left, Lend, Lstart, Lend, n->op);
     genfreeregs();
 
-    genAST(n->right, NOLABEL, n->op);
+    genAST(n->right, NOLABEL, Lstart, Lend, n->op);
     genfreeregs();
 
     cgjump(Lstart);
@@ -104,7 +104,7 @@ static int gen_funccall(struct ASTnode* n)
     while (gluetree)
     {
         // 右边生成
-        reg = genAST(gluetree->right, NOLABEL, gluetree->op);
+        reg = genAST(gluetree->right, NOLABEL, NOLABEL, NOLABEL, gluetree->op);
         // Copy this into the n'th function parameter: size is 1, 2, 3, ...
         cgcopyarg(reg, gluetree->size);
         // Keep the first (highest) number of arguments
@@ -119,8 +119,62 @@ static int gen_funccall(struct ASTnode* n)
     return (cgcall(n->sym, numargs));
 }
 
+static int genSWITCH(struct ASTnode* n)
+{
+    int* caseval, * caselabel;
+    int Ljumptop, Lend;
+    int i, reg, defaultlabel = 0, casecount = 0;
+    struct ASTnode* c;
+
+    // Create arrays for the case values and associated labels.
+    // Ensure that we have at least one position in each array.
+    caseval = (int*)malloc((n->intvalue + 1) * sizeof(int));
+    caselabel = (int*)malloc((n->intvalue + 1) * sizeof(int));
+
+    // Generate labels for the top of the jump table, and the
+    // end of the switch statement. Set a default label for
+    // the end of the switch, in case we don't have a default.
+    Ljumptop = genlabel();
+    Lend = genlabel();
+    defaultlabel = Lend;
+
+    // Output the code to calculate the switch condition
+    reg = genAST(n->left, NOLABEL, NOLABEL, NOLABEL, 0);
+    cgjump(Ljumptop);
+    genfreeregs();
+
+    // Walk the right-child linked list to
+    // generate the code for each case
+    for (i = 0, c = n->right; c != NULL; i++, c = c->right) {
+
+        // Get a label for this case. Store it
+        // and the case value in the arrays.
+        // Record if it is the default case.
+        caselabel[i] = genlabel();
+        caseval[i] = c->intvalue;
+        cglabel(caselabel[i]);
+        if (c->op == A_DEFAULT)
+            defaultlabel = caselabel[i];
+        else
+            casecount++;
+
+        // Generate the case code. Pass in the end label for the breaks
+        genAST(c->left, NOLABEL, NOLABEL, Lend, 0);
+        genfreeregs();
+    }
+
+    // Ensure the last case jumps past the switch table
+    cgjump(Lend);
+
+    // Now output the switch table and the end label.
+    cgswitch(reg, casecount, Ljumptop, caselabel, caseval, defaultlabel);
+    cglabel(Lend);
+    return (NOREG);
+}
+
+
 // interpretAST的汇编接口版本  后序
-int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用寄存器对应下标
+int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
 {
     int  leftreg;
     //  int  midreg;
@@ -130,33 +184,35 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
     switch (n->op)//此处填写语句类型 if fun 。。。
     {
     case A_IF:
-        return genIFAST(n);
+        return genIFAST(n, looptoplabel, loopendlabel);
     case A_WHILE:
         return genWHILE(n);
+    case A_SWITCH:
+        return (genSWITCH(n));
     case A_FUNCCALL: // 函数调用
         return (gen_funccall(n)); // 将当前函数传入（A_FUNCALL）
     case A_GLUE:
         // Do each child statement, and free the
         // registers after each child
-        genAST(n->left, NOLABEL, n->op);
+        genAST(n->left, iflabel, looptoplabel, loopendlabel, n->op);
         genfreeregs();
-        genAST(n->right, NOLABEL, n->op);
+        genAST(n->right, iflabel, looptoplabel, loopendlabel, n->op);
         genfreeregs();
         return NOREG;
 
 
     case A_FUNCTION:
         cgfuncpreamble(n->sym);  // 类似之前的cgpreamble生成函数前置码
-        genAST(n->left, NOLABEL, n->op);
+        genAST(n->left, NOLABEL, NOLABEL, NOLABEL, n->op);
         cgfuncpostamble(n->sym); // 类似之前的cgpostamble生成函数前置码
         return NOREG;
 
     }
 
     if (n->left)
-        leftreg = genAST(n->left, NOLABEL, n->op);
+        leftreg = genAST(n->left, NOLABEL, NOLABEL, NOLABEL, n->op);
     if (n->right)
-        rightreg = genAST(n->right, NOLABEL, n->op);
+        rightreg = genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
 
     switch (n->op)
     {
@@ -224,7 +280,7 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         // a compare followed by a jump. Otherwise, compare registers
         // and set one to 1 or 0 based on the comparison.
         if (parentASTop == A_IF || parentASTop == A_WHILE)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, reg));
+            return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel));
         else
             return (cgcompare_and_set(n->op, leftreg, rightreg));
 
@@ -322,11 +378,17 @@ int genAST(struct ASTnode* n, int reg, int parentASTop)  // reg为最近使用�
         return (cginvert(leftreg));
     case A_LOGNOT:
         return (cglognot(leftreg));
+    case A_BREAK:
+        cgjump(loopendlabel);
+        return (NOREG);
+    case A_CONTINUE:
+        cgjump(looptoplabel);
+        return (NOREG);
     case A_TOBOOL:
         // If the parent AST node is an A_IF or A_WHILE, generate
         // a compare followed by a jump. Otherwise, set the register
         // to 0 or 1 based on it's zeroeness or non-zeroeness
-        return (cgboolean(leftreg, parentASTop, reg));
+        return (cgboolean(leftreg, parentASTop, iflabel));
     default:
         fatald("Unknown AST operator", n->op);
     }

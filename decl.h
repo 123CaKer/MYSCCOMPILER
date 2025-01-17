@@ -122,7 +122,7 @@ struct ASTnode* while_statement();
 // sym.c
 struct symtable* findglob(char* s);
 int newglob(void);
-struct symtable* addglob(char* name, int type, struct symtable* ctype,int stype, int size);
+struct symtable* addglob(char* name, int type, struct symtable* ctype,int stype,int class ,int size);
 void clear_symtable(void);
 struct symtable* findmember(char* s);
 struct symtable* findstruct(char* s);

@@ -344,7 +344,7 @@ static int op_precedence(int tokentype)
     return (prec);
 }
 
-//判断是否为右结合值
+//判断是否为右结合值   自右到左赋值 z=2；
 static int rightassoc(int tokentype)
 {
     if (tokentype == T_ASSIGN)
@@ -374,7 +374,8 @@ struct ASTnode* binexpr(int p)
     */
 
     if (Token.token == T_EOF || Token.token == T_SEMI ||
-        Token.token == T_RPAREN|| Token.token == T_RBRACKET || Token.token == T_COMMA)// 匹配 结束符
+        Token.token == T_RPAREN|| Token.token == T_RBRACKET || 
+        Token.token == T_COMMA|| Token.token == T_COLON)// 匹配 结束符
 
     {
         /*  AST树
@@ -458,7 +459,8 @@ struct ASTnode* binexpr(int p)
 
 
         tokentype = Token.token;  // 更新 token类型
-        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN || Token.token == T_RBRACKET || Token.token == T_COMMA)// 匹配 结束符
+        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN 
+            || Token.token == T_RBRACKET || Token.token == T_COMMA || Token.token == T_COLON)// 匹配 结束符
         {
             left->rvalue = 1; //树的左边为右值
             return left;

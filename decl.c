@@ -21,6 +21,7 @@ struct symtable* var_declaration(int type, struct symtable* ctype, int class)
 	// See if this has already been declared
 	switch (class)
 	{
+	case C_EXTERN:
 	case C_GLOBAL:
 		if (findglob(Text) != NULL)
 			fatals("Duplicate global variable declaration", Text);
@@ -47,14 +48,19 @@ struct symtable* var_declaration(int type, struct symtable* ctype, int class)
 			// We treat the array as a pointer to its elements' type
 			switch (class)
 			{
+			case C_EXTERN:
 			case C_GLOBAL:
-				sym = addglob(Text, pointer_to(type), ctype, S_ARRAY, Token.intvalue);
+				sym = addglob(Text, type, ctype, S_VARIABLE, class, 1);
 				break;
 			case C_LOCAL:
+				sym = addlocl(Text, type, ctype, S_VARIABLE, 1);
+				break;
 			case C_PARAM:
+				sym = addparm(Text, type, ctype, S_VARIABLE, 1);
+				break;
 			case C_MEMBER:
-				fatal
-				("For now, declaration of non-global arrays is not implemented");
+				sym = addmemb(Text, type, ctype, S_VARIABLE, 1);
+				break;
 			}
 		}
 		// Ensure we have a following ']'
@@ -66,8 +72,9 @@ struct symtable* var_declaration(int type, struct symtable* ctype, int class)
 		// and generate its space in assembly
 		switch (class)
 		{
+		case C_EXTERN:
 		case C_GLOBAL:
-			sym = addglob(Text, type, ctype, S_VARIABLE, 1);
+			sym = addglob(Text, type, ctype, S_VARIABLE, class, 1);
 			break;
 		case C_LOCAL:
 			sym = addlocl(Text, type, ctype, S_VARIABLE, 1);
@@ -82,6 +89,9 @@ struct symtable* var_declaration(int type, struct symtable* ctype, int class)
 	}
 	return (sym);
 }
+
+
+
 
 // var_declaration_list: <null>
 //           | variable_declaration
@@ -105,7 +115,7 @@ static int var_declaration_list(struct symtable* funcsym, int class, int separat
 	while (Token.token != end_token)
 	{
 		// Get the type and identifier
-		type = parse_type(&ctype);
+		type = parse_type(&ctype,&class);
 		ident();
 
 		// Check that this type matches the prototype if there is one
@@ -166,7 +176,7 @@ struct ASTnode* function_declaration(int type)
 	{
 		endlabel = genlabel();
 		// Assumtion: functions only return scalar types, so NULL below
-		newfuncsym = addglob(Text, type, NULL, S_FUNCTION, endlabel);
+		newfuncsym = addglob(Text, type, NULL, S_FUNCTION, C_GLOBAL, endlabel);
 	}
 	// Scan in the '(', any parameters and the ')'.
 	// Pass in any existing function prototype pointer
@@ -428,13 +438,15 @@ void enum_declaration(void)
 // and ctype that it represents
 int typedef_declaration(struct symtable** ctype)
 {
-	int type;
+	int type, class = 0;
 
 	// Skip the typedef keyword.
 	scan(&Token);
 
 	// Get the actual type following the keyword
-	type = parse_type(ctype);
+	type = parse_type(ctype,&class);
+	if (class != 0)
+		fatal("Can't have extern in a typedef declaration");
 
 	// See if the typedef identifier already exists
 	if (findtypedef(Text) != NULL)
@@ -462,9 +474,22 @@ int type_of_typedef(char* name, struct symtable** ctype)
 
 
 // 解析变量声明 符号表
-int parse_type(struct symtable** ctype)
+int parse_type(struct symtable** ctype, int* class)
 {
-	int typer = -1;
+	int typer=-1, exstatic = 1;
+
+	// See if the class has been changed to extern (later, static)
+	while (exstatic) 
+	{
+		switch (Token.token)
+		{
+		case T_EXTERN: 
+			*class = C_EXTERN; 
+			scan(&Token);
+			break;
+		default: exstatic = 0;
+		}
+	}
 	switch (Token.token)
 	{
 	case T_CHAR:
@@ -611,7 +636,7 @@ void global_declarations(void)
 {
 	struct ASTnode* tree;
 	struct symtable* ctype = NULL;
-	int type;
+	int type, class = C_GLOBAL;
 
 	while (1)
 	{
@@ -620,7 +645,7 @@ void global_declarations(void)
 			break;
 
 		// Get the type
-		type = parse_type(&ctype);
+		type = parse_type(&ctype, &class);
 
 		
 
@@ -669,7 +694,7 @@ void global_declarations(void)
 #endif // 0
 
 
-			genAST(tree, NOLABEL, 0);
+			genAST(tree, NOLABEL, NOLABEL, NOLABEL, 0);
 
 			// Now free the symbols associated
 			// with this function

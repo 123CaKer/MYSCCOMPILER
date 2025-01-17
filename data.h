@@ -15,6 +15,8 @@ int   Line;     // 当前令牌所在的读取行数
 int	  Putback;  // 需要返回输入流的值 一般是不想要的
 FILE* Infile;   // 文件所读取的指针
 FILE* Outfile;  // 输出文件指针
+char* Infilename;		// Name of file we are parsing
+char* Outfilename;		// Name of file we opened as Outfile
 struct token	Token;  // 全局令牌
 char Text[TEXTLEN + 1];		// 标识符存储 buff
 //struct symtable Gsym[NSYMBOLS]; // 全局符号表 存储变量名等
@@ -23,7 +25,18 @@ int O_dumpAST;         // 调试输出AST节点
 //int Globsq;  // Position of next free global symbol slot  arm
 int Globs;		// Position of next free global symbol slot
 int Locls;		// Position of next free local symbol slot
+int Looplevel;                  // 循环深度
+int Switchlevel;		// switch深度
+/*
+     while
+     {
+     while      Looplevel=2
+     {
 
+     }
+     }
+
+*/
 // Symbol table lists
 struct symtable* Globhead, * Globtail;	  // Global variables and functions
 struct symtable* Loclhead, * Locltail;	  // Local variables

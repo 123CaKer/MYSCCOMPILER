@@ -15,21 +15,48 @@ static int chrpos(char* s, int c)
 }
 
 
-static int next(void)
+ int next(void)
 // 获取输入文件中的下一个字符
 {
-    int c;                     // 使用int类型而不是char是防止EOF失效
-    if (Putback)              // 如果Putback中有的话就读取当前Putback值
-    {
-        c = Putback;
+    int c, //获取的字符
+        l; // 行号
+
+    if (Putback) 
+    {			//字符输入
+        c = Putback;			// 需要返回的
         Putback = 0;
-        return c;
+        return (c);
     }
-    c = fgetc(Infile);		// 从输入文件中读取
+
+    c = fgetc(Infile);			// Read from input file
+
+    while (c == '#')
+    {			// We've hit a pre-processor statement
+        scan(&Token);			// 获取行号
+        if (Token.token != T_INTLIT)
+            fatals("Expecting pre-processor line number, got:", Text);
+        l = Token.intvalue;
+
+        scan(&Token);			// Get the filename in Text 获取文件名字
+        if (Token.token != T_STRLIT)
+            fatals("Expecting pre-processor file name, got:", Text);
+
+        if (Text[0] != '<')// 说明当前为真正的文件名字
+        {		// If this is a real filename
+            if (strcmp(Text, Infilename))	// and not the one we have now
+                Infilename = strdup(Text);	// save it. Then update the line num
+            Line = l;
+        }
+
+        while ((c = fgetc(Infile)) != '\n'); // Skip to the end of the line
+        c = fgetc(Infile);			// and get the next character
+    }
+
     if ('\n' == c)
-        Line++;			// 换行
-    return c;
+        Line++;				// Increment line count
+    return (c);
 }
+
 
 
 static void putback(int c)  // 将不需要的值放回Putback中 
@@ -299,7 +326,9 @@ int scan(struct token* t)
         }
         break;
 
-
+    case ':':
+        t->token = T_COLON;
+        break;
     case '~': // 按位取反
         t->token = T_INVERT;
         break;
@@ -387,6 +416,24 @@ int scan(struct token* t)
             case T_ENUM:
                 t->token = T_ENUM;
                 break;
+            case T_EXTERN:
+                t->token = T_EXTERN;
+                break;
+            case T_BREAK:
+                t->token = T_BREAK;
+                break;
+            case T_CONTINUE:
+                t->token = T_CONTINUE;
+                break;
+            case T_DEFAULT:
+                t->token = T_DEFAULT;
+                break;
+            case T_CASE:
+                t->token = T_CASE;
+                break;
+            case T_SWITCH:
+                t->token = T_SWITCH;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -442,6 +489,8 @@ static int keyword(char* s)  //获取关键字的类型值
             return T_ELSE;
         else if (!strcmp(s, "enum"))
             return (T_ENUM);
+        else if (!strcmp(s, "extern"))
+            return (T_EXTERN);
     case 'w':
         if (!strcmp(s, "while"))
             return T_WHILE;
@@ -454,6 +503,10 @@ static int keyword(char* s)  //获取关键字的类型值
     case 'c':
         if (!strcmp(s, "char"))
             return T_CHAR;
+        else if (!strcmp(s, "continue"))
+            return T_CONTINUE;
+        else if (!strcmp(s, "case"))
+            return T_CASE;
     case 'r':
         if (!strcmp(s, "return"))
             return T_RETURN;
@@ -463,13 +516,20 @@ static int keyword(char* s)  //获取关键字的类型值
     case 's':
         if (!strcmp(s, "struct"))
             return (T_STRUCT);
+        else if (!strcmp(s, "switch"))
+            return (T_SWITCH);
     case 'u':
         if (!strcmp(s, "union"))
             return (T_UNION);
     case 't':
         if (!strcmp(s, "typedef"))
             return (T_TYPEDEF);
-   
+    case 'b':
+        if (!strcmp(s, "break"))
+            return (T_BREAK);
+    case 'd':
+        if (!strcmp(s, "default"))
+            return (T_DEFAULT);
     }
     return 0;
 }
