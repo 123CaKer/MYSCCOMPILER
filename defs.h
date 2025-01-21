@@ -106,7 +106,8 @@ enum
 // 令牌结构体
 struct token
 {
-	int token;   //上述的token类型
+	int token;     //上述的token类型
+    char* tokstr;  // String version of the token
 	int intvalue;  // 内部的值
 };
 

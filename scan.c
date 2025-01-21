@@ -3,6 +3,23 @@
 #include "decl.h"
 
 
+// List of token strings, for debugging purposes
+char* Tstring[] =
+{
+  "EOF", "=", "||", "&&", "|", "^", "&",
+  "==", "!=", ",", ">", "<=", ">=", "<<", ">>",
+  "+", "-", "*", "/", "++", "--", "~", "!",
+  "void", "char", "int", "long",
+  "if", "else", "while", "for", "return",
+  "struct", "union", "enum", "typedef",
+  "extern", "break", "continue", "switch",
+  "case", "default",
+  "intlit", "strlit", ";", "identifier",
+  "{", "}", "(", ")", "[", "]", ",", ".",
+  "->", ":"
+};
+
+
 // rejtoken ÷∏’Î
 static struct token* Rejtoken = NULL;
 
@@ -443,6 +460,8 @@ int scan(struct token* t)
             fatalc("Unrecognised character", c);
 
     }
+    // We found a token
+    t->tokstr = Tstring[t->token];
     return 1; //’“µΩtoken
 }
 

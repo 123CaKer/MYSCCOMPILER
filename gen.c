@@ -193,12 +193,14 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         return (gen_funccall(n)); // 将当前函数传入（A_FUNCALL）
     case A_GLUE:
         // Do each child statement, and free the
-        // registers after each child
-        genAST(n->left, iflabel, looptoplabel, loopendlabel, n->op);
+     // registers after each child
+        if (n->left != NULL) // 需判断一下是否为空
+            genAST(n->left, iflabel, looptoplabel, loopendlabel, n->op);
         genfreeregs();
-        genAST(n->right, iflabel, looptoplabel, loopendlabel, n->op);
+        if (n->right != NULL)// 需判断一下是否为空 
+            genAST(n->right, iflabel, looptoplabel, loopendlabel, n->op);
         genfreeregs();
-        return NOREG;
+        return (NOREG);
 
 
     case A_FUNCTION:

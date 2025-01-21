@@ -4,7 +4,7 @@
 #include <stdio.h>
 // AST 解析
 // 操作符优先级  
-static int OpPrec[] = 
+static int OpPrec[] =
 {
   0, 10, 20, 30,		// T_EOF, T_ASSIGN, T_LOGOR, T_LOGAND
   40, 50, 60,			// T_OR, T_XOR, T_AMPER 
@@ -78,14 +78,25 @@ etc.
    NULL  expr1
 
 */
-static struct ASTnode* expression_list(void)
+// expression_list: <null>
+//        | expression
+//        | expression ',' expression_list
+//        ;
+
+/*
+    一个例子 比如说 一下所示为一个list
+
+    fun(16+5+2,313+,95,2+x/2 ) 括号内为一个 表达式列表
+
+*/
+struct ASTnode* expression_list(int endtoken)
 {
     struct ASTnode* tree = NULL;
     struct ASTnode* child = NULL;
     int exprcount = 0;
 
-    // Loop until the final right parentheses
-    while (Token.token != T_RPAREN) 
+    // Loop until the end token
+    while (Token.token != endtoken)
     {
 
         // Parse the next expression and increment the expression count
@@ -94,24 +105,20 @@ static struct ASTnode* expression_list(void)
 
         // Build an A_GLUE AST node with the previous tree as the left child
         // and the new expression as the right child. Store the expression count.
-        tree = mkastnode(A_GLUE, P_NONE, tree, NULL, child, NULL, exprcount);// 右边生成expr
+        tree = mkastnode(A_GLUE, P_NONE, tree, NULL, child, NULL, exprcount);
 
-        // 判断下一个是否为， 或者）
-        switch (Token.token)
-        {
-        case T_COMMA:
-            scan(&Token);
+        // Stop when we reach the end token
+        if (Token.token == endtoken)
             break;
-        case T_RPAREN:
-            break;
-        default:
-            fatald("Unexpected token in expression list", Token.token);
-        }
+
+        // Must have a ',' at this point
+        match(T_COMMA, ",");
     }
 
-    //返回最终表达式
+    // Return the tree of expressions
     return (tree);
 }
+
 
 
 
@@ -310,7 +317,7 @@ int arithop(int tokentype)
         return A_LT;
     case T_ASSIGN:
         return A_ASSIGN;
-   
+
 
 
 
@@ -328,7 +335,7 @@ int arithop(int tokentype)
     if (tokentype > T_EOF && tokentype <= T_SLASH)
         return (tokentype);
     fatald("Syntax error, token", tokentype);
-    return (0);			
+    return (0);
 
 }
 
@@ -374,8 +381,8 @@ struct ASTnode* binexpr(int p)
     */
 
     if (Token.token == T_EOF || Token.token == T_SEMI ||
-        Token.token == T_RPAREN|| Token.token == T_RBRACKET || 
-        Token.token == T_COMMA|| Token.token == T_COLON)// 匹配 结束符
+        Token.token == T_RPAREN || Token.token == T_RBRACKET ||
+        Token.token == T_COMMA || Token.token == T_COLON)// 匹配 结束符
 
     {
         /*  AST树
@@ -459,14 +466,14 @@ struct ASTnode* binexpr(int p)
 
 
         tokentype = Token.token;  // 更新 token类型
-        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN 
+        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN
             || Token.token == T_RBRACKET || Token.token == T_COMMA || Token.token == T_COLON)// 匹配 结束符
         {
             left->rvalue = 1; //树的左边为右值
             return left;
         }
 
-
+       
     }
     left->rvalue = 1;
     return left; //返回创建
@@ -486,8 +493,8 @@ static struct ASTnode* funccall()
     // Get the '('
     lparen();
 
-    // 参数表达式解析
-    tree = expression_list();
+    // 参数表达式解析 并且匹配）
+    tree = expression_list(T_RPAREN);
 
     // XXX Check type of each argument against the function's prototype
 
@@ -503,14 +510,14 @@ static struct ASTnode* funccall()
 
 // Parse the index into an array and
 // return an AST tree for it
-static struct ASTnode* array_access(void) 
+static struct ASTnode* array_access(void)
 {
     struct ASTnode* left, * right;
     struct symtable* aryptr;
 
-     // 判断是否是array
-    // Check that the identifier has been defined as an array
-    // then make a leaf node for it that points at the base
+    // 判断是否是array
+   // Check that the identifier has been defined as an array
+   // then make a leaf node for it that points at the base
     if ((aryptr = findsymbol(Text)) == NULL || aryptr->stype != S_ARRAY)
     {
         fatals("Undeclared array", Text);
@@ -555,7 +562,7 @@ static struct ASTnode* array_access(void)
     从下往上生成AST
     */
 
- struct ASTnode* member_access(int withpointer) 
+struct ASTnode* member_access(int withpointer)
 {
     struct ASTnode* left, * right;
     struct symtable* compvar;
@@ -610,46 +617,46 @@ static struct ASTnode* array_access(void)
 
 
 
- struct ASTnode* primary()
- {
-     struct ASTnode* n = NULL;
-     int id;
-     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
-     switch (Token.token)
-     {
+struct ASTnode* primary()
+{
+    struct ASTnode* n = NULL;
+    int id;
+    // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
+    switch (Token.token)
+    {
 
-     case T_STRLIT:
-         // For a STRLIT token, generate the assembly for it.
-         // Then make a leaf AST node for it. id is the string's label.
-         id = genglobstr(Text); // 生成 汇编
-         n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, id); // 生成叶子节点
-         break;
+    case T_STRLIT:
+        // For a STRLIT token, generate the assembly for it.
+        // Then make a leaf AST node for it. id is the string's label.
+        id = genglobstr(Text); // 生成 汇编
+        n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, id); // 生成叶子节点
+        break;
 
-     case T_INTLIT: //数字值
+    case T_INTLIT: //数字值
 
-         if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
-             n = mkastleaf(A_INTLIT, P_CHAR, NULL, Token.intvalue);
-         else                                                // int型
-             n = mkastleaf(A_INTLIT, P_INT, NULL, Token.intvalue);
-         break;
+        if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
+            n = mkastleaf(A_INTLIT, P_CHAR, NULL, Token.intvalue);
+        else                                                // int型
+            n = mkastleaf(A_INTLIT, P_INT, NULL, Token.intvalue);
+        break;
 
-     case T_IDENT:
+    case T_IDENT:
 
-         return postfix(); // 后缀表达式
+        return postfix(); // 后缀表达式
 
-     case T_LPAREN:
-         // Beginning of a parenthesised expression, skip the '('.
-         // Scan in the expression and the right parenthesis
-         scan(&Token);
-         n = binexpr(0); // 优先计算（）内的
-         rparen(); // 匹配
-         return (n);
+    case T_LPAREN:
+        // Beginning of a parenthesised expression, skip the '('.
+        // Scan in the expression and the right parenthesis
+        scan(&Token);
+        n = binexpr(0); // 优先计算（）内的
+        rparen(); // 匹配
+        return (n);
 
-     default:
-         fatald("Expecting a primary expression, got token", Token.token);
+    default:
+        fatald("Expecting a primary expression, got token", Token.token);
 
-     }
+    }
 
-     scan(&Token);//扫描下一个令牌并返回叶子节点
-     return n;
- }
+    scan(&Token);//扫描下一个令牌并返回叶子节点
+    return n;
+}

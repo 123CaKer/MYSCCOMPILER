@@ -206,8 +206,12 @@ struct ASTnode* function_declaration(int type)
 	// Set the Functionid global to the function's symbol pointer
 	Functionid = oldfuncsym;
 
-	// Get the AST tree for the compound statement
+	// Get the AST tree for the compound statement and mark that we have parsed no loops or switches yet
+	Looplevel = 0;// 循环层级为0
+	Switchlevel = 0;// switch 层级为0
+	lbrace();
 	tree = compound_statement();
+	rbrace();
 
 	// If the function type isn't P_VOID ..
 	if (type != P_VOID) {
@@ -680,7 +684,6 @@ void global_declarations(void)
 
 			// Parse the function declaration
 			tree = function_declaration(type);
-
 			// Only a function prototype, no code
 			if (tree == NULL)
 				continue;
