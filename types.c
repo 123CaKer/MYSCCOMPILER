@@ -108,7 +108,7 @@ int inttype(int type)
         return 1;
     return 0;
 #endif
-    return ((type & 0xf) == 0);
+    return (((type & 0xf) == 0) && (type >= P_CHAR && type <= P_LONG));
 }
 
 //判断是否为指针类的类型 是为1
