@@ -74,6 +74,7 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label);
 // 声明变量
 struct symtable* var_declaration(int type, struct symtable* ctype, int class);
 struct symtable* composite_declaration(int type);
+void enum_declaration(void);
 //expr.c
 //将 表达式符号转换为AST对应符号
 int arithop(int tokentype);

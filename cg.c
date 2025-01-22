@@ -512,38 +512,68 @@ int cgstorlocal(int r, struct symtable *sym) {
 }
 
 // Generate a global symbol but not functions
-void cgglobsym(struct symtable *node) {
-  int size;
+void cgglobsym(struct symtable* node)
+{
+    int size, type;
+    int initvalue;
+    int i;
 
-  if (node == NULL)
-    return;
-  if (node->stype == S_FUNCTION)
-    return;
+    if (node == NULL)
+        return;
+    if (node->stype == S_FUNCTION)
+        return;
 
-  // Get the size of the type
-  size = typesize(node->type, node->ctype);
+    // Get the size of the variable (or its elements if an array)
+    // and the type of the variable
+    if (node->stype == S_ARRAY)
+    {
+        size = typesize(value_at(node->type), node->ctype);
+        type = value_at(node->type);
+    }
+    else// 否则为一般变量 char int x；
+    {
+        size = node->size;
+        type = node->type;
+    }
 
-  // Generate the global identity and the label
-  cgdataseg();
-  fprintf(Outfile, "\t.globl\t%s\n", node->name);
-  fprintf(Outfile, "%s:", node->name);
+    // Generate the global identity and the label
+    cgdataseg();
+    fprintf(Outfile, "\t.globl\t%s\n", node->name);
+    fprintf(Outfile, "%s:\n", node->name);
 
-  // Generate the space for this type
-  switch (size) {
-    case 1:
-      fprintf(Outfile, "\t.byte\t0\n");
-      break;
-    case 4:
-      fprintf(Outfile, "\t.long\t0\n");
-      break;
-    case 8:
-      fprintf(Outfile, "\t.quad\t0\n");
-      break;
-    default:
-      for (int i = 0; i < size; i++)
-	fprintf(Outfile, "\t.byte\t0\n");
-  }
+    // Output space for one or more elements
+    // 输出成员对象分配的空间
+    for (i = 0; i < node->nelems; i++)
+    {
+
+        // Get any initial value
+        initvalue = 0;
+        if (node->initlist != NULL)
+            initvalue = node->initlist[i];
+
+        // Generate the space for this type
+        switch (size)
+        {
+        case 1:// char
+            fprintf(Outfile, "\t.byte\t%d\n", initvalue);
+            break;
+        case 4:// int
+            fprintf(Outfile, "\t.long\t%d\n", initvalue);
+            break;
+        case 8: // string long addr
+            // Generate the pointer to a string literal
+            if (node->initlist != NULL && type == pointer_to(P_CHAR))
+                fprintf(Outfile, "\t.quad\tL%d\n", initvalue);
+            else
+                fprintf(Outfile, "\t.quad\t%d\n", initvalue);
+            break;
+        default:
+            for (int i = 0; i < size; i++)
+                fprintf(Outfile, "\t.byte\t0\n");
+        }
+    }
 }
+
 
 // Generate a global string and its start label
 void cgglobstr(int l, char *strvalue) {

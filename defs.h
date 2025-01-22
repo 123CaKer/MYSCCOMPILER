@@ -162,6 +162,7 @@ struct symtable
 		int size;			// 符号表中的符号数量
 		int endlabel;		// For functions, the end label 
 	};
+	int* initlist;		// List of initial values
 	struct symtable* next;	    // Next symbol in one list
 	struct symtable* member;	// First member of a function, struct,union or enum
 	                            // 函数的形参 结构体成员 第一个

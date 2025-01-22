@@ -405,15 +405,11 @@ struct ASTnode* single_statement()
     case T_UNION:
     case T_ENUM:
     case T_TYPEDEF:
-        // The beginning of a variable declaration.
-        // Parse the type and get the identifier.
-        // Then parse the rest of the declaration
-        // and skip over the semicolon
-        type = parse_type(&ctype, &class);
-        ident();
-        var_declaration(type, ctype, class);
+        // The beginning of a variable declaration list.
+        // 变量列表 int a ，v,c。。。
+        declaration_list(&ctype, C_LOCAL, T_SEMI, T_EOF);
         semi();
-        return (NULL);		// No AST generated here
+        return (NULL);// 声明不是stmt类型 故返回NULL
     case T_IF:
         return (if_statement());
     case T_WHILE:
