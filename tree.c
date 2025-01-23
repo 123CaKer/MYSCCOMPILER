@@ -6,7 +6,7 @@
 // 创建AST节点值
 
 struct ASTnode* mkastnode(int op, int type, struct ASTnode* left,
-    struct ASTnode* mid, struct ASTnode* right, struct symtable* sym,int intvalue)
+    struct ASTnode* mid, struct ASTnode* right, struct symtable* sym, int intvalue)
 {
     struct ASTnode* n;
     n = (struct ASTnode*)malloc(sizeof(struct ASTnode));
@@ -33,14 +33,14 @@ struct ASTnode* mkastnode(int op, int type, struct ASTnode* left,
 //生成AST叶子节点
 struct ASTnode* mkastleaf(int op, int type, struct symtable* sym, int intvalue)
 {
-    return mkastnode(op, type, NULL, NULL, NULL, sym,intvalue);
+    return mkastnode(op, type, NULL, NULL, NULL, sym, intvalue);
 }
 
 // 生成度为1AST 
 struct ASTnode* mkastunary(int op, int type, struct ASTnode* left, struct symtable* sym, int intvalue)
 {
 
-    return mkastnode(op, type, left, NULL, NULL, sym,intvalue);
+    return mkastnode(op, type, left, NULL, NULL, sym, intvalue);
 }
 
 // AST节点释放

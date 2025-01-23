@@ -25,7 +25,7 @@ static int genIFAST(struct ASTnode* n, int looptoplabel, int loopendlabel)
 
 
 
-     genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);;// Condition and jump to Lfalse
+    genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);;// Condition and jump to Lfalse
     genfreeregs();
 
     //  否则真分支 
@@ -431,7 +431,7 @@ void genglobsym(int id)
 }
 
 // 生成字符串的汇编代码
-int genglobstr(char* strvalue) 
+int genglobstr(char* strvalue)
 {
     int l = genlabel();
     cgglobstr(l, strvalue);
@@ -449,13 +449,13 @@ void genresetlocals(void)
 {
     cgresetlocals();
 }
-int gengetlocaloffset(int type, int isparam) 
+int gengetlocaloffset(int type, int isparam)
 {
     return (cggetlocaloffset(type, isparam));
 }
 #endif
 
-int genalign(int type, int offset, int direction) 
+int genalign(int type, int offset, int direction)
 {
     return (cgalign(type, offset, direction));
 }

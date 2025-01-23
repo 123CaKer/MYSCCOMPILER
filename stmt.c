@@ -179,9 +179,9 @@ struct ASTnode* for_statement()
     struct ASTnode* tree;
     match(T_FOR, "for");
     lparen();
-   // preopAST = single_statement();
-      // Get the pre_op expression and the ';' 因为preop是匹配;
-    preopAST =  expression_list(T_SEMI);
+    // preopAST = single_statement();
+       // Get the pre_op expression and the ';' 因为preop是匹配;
+    preopAST = expression_list(T_SEMI);
     semi();
 
     condAST = binexpr(0);
@@ -195,7 +195,7 @@ struct ASTnode* for_statement()
     rparen();
 
     Looplevel++;// 循环等级+1
-    bodyAST = single_statement(); 
+    bodyAST = single_statement();
     Looplevel--;
 
     tree = mkastnode(A_GLUE, P_NONE, bodyAST, NULL, postopAST, NULL, 0);;
@@ -261,7 +261,7 @@ static struct ASTnode* continue_statement(void)
 
 //生成switch AST
 /*
-* 
+*
 *         A_SWITCH
 *         /      \
       condition   A_CASE
@@ -271,19 +271,19 @@ static struct ASTnode* continue_statement(void)
                        语句  A_DEAFAULT
                               /       \
 *                          默认语句  NULL
-* 
-* 
+*
+*
 */
 static struct ASTnode* switch_statement(void) {
     struct ASTnode* left,// switch条件
         * n,  // 
-        * c, 
+        * c,
         * casetree = NULL,
-        * casetail=NULL;
+        * casetail = NULL;
     int inloop = 1,
         casecount = 0;// case的语句数量
     int seendefault = 0;
-    int ASTop, 
+    int ASTop,
         casevalue;// case的值
 
     // Skip the 'switch' and '('
@@ -371,9 +371,9 @@ struct ASTnode* single_statement()
 {
     int type, class = C_LOCAL;
     struct symtable* ctype;
-    struct ASTnode* stmt=NULL;
+    struct ASTnode* stmt = NULL;
 
-    switch (Token.token) 
+    switch (Token.token)
     {
     case T_LBRACE:
         // We have a '{', so this is a compound statement
@@ -382,7 +382,7 @@ struct ASTnode* single_statement()
         rbrace();
         return(stmt);
     case T_IDENT:
-        
+
         // We have to see if the identifier matches a typedef.
        // If not, treat it as an expression.
        // Otherwise, fall down to the parse_type() call.
@@ -390,7 +390,7 @@ struct ASTnode* single_statement()
         /*
             譬如你在文件中随意输入 x
             将其是为 一个变量
-        
+
         */
         if (findtypedef(Text) == NULL)
         {
@@ -407,9 +407,9 @@ struct ASTnode* single_statement()
     case T_TYPEDEF:
         // The beginning of a variable declaration list.
         // 变量列表 int a ，v,c。。。
-        declaration_list(&ctype, C_LOCAL, T_SEMI, T_EOF);
+        declaration_list(&ctype, C_LOCAL, T_SEMI, T_EOF, &stmt);
         semi();
-        return (NULL);// 声明不是stmt类型 故返回NULL
+        return (stmt);// 返回语句
     case T_IF:
         return (if_statement());
     case T_WHILE:
@@ -428,7 +428,7 @@ struct ASTnode* single_statement()
         // For now, see if this is an expression.
       // This catches assignment statements.
         stmt = binexpr(0);
-        semi(); 
+        semi();
         return(stmt);
     }
     return (NULL);		// Keep -Wall happy
@@ -462,12 +462,12 @@ struct ASTnode* compound_statement(int inswitch)
         }
 
         // Leave if we've hit the end token
-        if (Token.token == T_RBRACE) 
+        if (Token.token == T_RBRACE)
             return(left);
-            // If inswitch is true,
-            // we look for a '}', 'case' or 'default' token
-            // to end the parsing.
-        if (inswitch && (Token.token == T_CASE || Token.token == T_DEFAULT)) 
+        // If inswitch is true,
+        // we look for a '}', 'case' or 'default' token
+        // to end the parsing.
+        if (inswitch && (Token.token == T_CASE || Token.token == T_DEFAULT))
             return(left);
     }
 }

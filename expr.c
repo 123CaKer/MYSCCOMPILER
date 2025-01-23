@@ -473,7 +473,7 @@ struct ASTnode* binexpr(int p)
             return left;
         }
 
-       
+
     }
     left->rvalue = 1;
     return left; //·µ»Ø´´½¨

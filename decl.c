@@ -134,9 +134,12 @@ int parse_literal(int type)
 // parse any initialisation value and allocate storage for it.
 // Return the variable's symbol table entry.
 // 返回符号表的类型是extern 还是 local 还是C_MEMBER变量
- struct symtable* scalar_declaration(char* varname, int type, struct symtable* ctype, int class) 
+ struct symtable* scalar_declaration(char* varname, int type, struct symtable* ctype, int class,struct ASTnode** tree)
 {
     struct symtable* sym = NULL;
+    struct ASTnode* varnode,//变量值节点
+        * exprnode;// 表达式节点
+    *tree = NULL;
 
     // Add this as a known scalar 仅为声明
     switch (class)
@@ -178,6 +181,28 @@ int parse_literal(int type)
             sym->initlist = (int*)malloc(sizeof(int));
             sym->initlist[0] = parse_literal(type);
             scan(&Token);
+        }
+
+
+        if (class == C_LOCAL)
+        {
+            // Make an A_IDENT AST node with the variable
+            //生成标识符节点
+            varnode = mkastleaf(A_IDENT, sym->type, sym, 0);
+
+            // Get the expression for the assignment, make into a rvalue
+            // 右边值表达式
+            exprnode = binexpr(0);
+            exprnode->rvalue = 1;
+
+            // Ensure the expression's type matches the variable
+            exprnode = modify_type(exprnode, varnode->type, 0);
+            if (exprnode == NULL)
+                fatal("Incompatible expression in assignment");
+
+            // Make an assignment AST tree
+            *tree = mkastnode(A_ASSIGN, exprnode->type, exprnode,
+                NULL, varnode, NULL, 0);
         }
     }
 
@@ -301,9 +326,10 @@ int parse_literal(int type)
 // 函数参数列表fun(a,b,c......)
  int param_declaration_list(struct symtable* oldfuncsym, struct symtable* newfuncsym) 
  {
-    int type, paramcnt = 0;
-    struct symtable* ctype;
-    struct symtable* protoptr = NULL;
+     int type, paramcnt = 0;
+     struct symtable* ctype;
+     struct symtable* protoptr = NULL;
+     struct ASTnode* unused;
 
     // Get the pointer to the first prototype parameter
     if (oldfuncsym != NULL)
@@ -313,7 +339,7 @@ int parse_literal(int type)
     while (Token.token != T_RPAREN) 
     {
         // Get the type of the next parameter
-        type = declaration_list(&ctype, C_PARAM, T_COMMA, T_RPAREN);
+        type = declaration_list(&ctype, C_PARAM, T_COMMA, T_RPAREN, & unused);
         if (type == -1)
             fatal("Bad type in parameter list");
 
@@ -435,10 +461,11 @@ int parse_literal(int type)
  // struct 和 union 的声明
  struct symtable* composite_declaration(int type) 
  {
-    struct symtable* ctype = NULL;
-    struct symtable* m;
-    int offset;
-    int t;
+     struct symtable* ctype = NULL;
+     struct symtable* m;
+     struct ASTnode* unused;
+     int offset;
+     int t;
 
     // Skip the struct/union keyword
     scan(&Token);
@@ -476,7 +503,7 @@ int parse_literal(int type)
     // Scan in the list of members
     while (1) {
         // Get the next member. m is used as a dummy
-        t = declaration_list(&m, C_MEMBER, T_SEMI, T_RBRACE);
+        t = declaration_list(&m, C_MEMBER, T_SEMI, T_RBRACE,&unused);
         if (t == -1)
             fatal("Bad type in member list");
         if (Token.token == T_SEMI)
@@ -638,7 +665,7 @@ int type_of_typedef(char* name, struct symtable** ctype)
 // have the identifier in the Token variable.
 // The class argument is the variable's class.
 // Return a pointer to the symbol's entry in the symbol table
-struct symtable* symbol_declaration(int type, struct symtable* ctype,int class)
+struct symtable* symbol_declaration(int type, struct symtable* ctype,int class,struct ASTnode** tree)
 {
     struct symtable* sym = NULL;
     char* varname = strdup(Text);
@@ -649,7 +676,8 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype,int class)
     ident();
 
     // Deal with function declarations
-    if (Token.token == T_LPAREN) {
+    if (Token.token == T_LPAREN) 
+    {
         return (function_declaration(varname, type, ctype, class));
     }
     // See if this array or scalar variable has already been declared
@@ -671,7 +699,7 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype,int class)
     if (Token.token == T_LBRACKET)
         sym = array_declaration(varname, type, ctype, class);
     else
-        sym = scalar_declaration(varname, type, ctype, class);
+        sym = scalar_declaration(varname, type, ctype, class,tree);
     return (sym);
 }
 
@@ -683,10 +711,12 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype,int class)
 /*
    int *a，*b， ccdd ，cs ，sds。。。。。 
    */
-int declaration_list(struct symtable** ctype, int class, int et1, int et2)
+int declaration_list(struct symtable** ctype, int class, int et1, int et2,struct ASTnode **gluetree)
 {
     int inittype, type;
     struct symtable* sym;
+    struct ASTnode* tree;
+    *gluetree = NULL;// gluetree 为AST tree的分支 其头节点为A_GLUE
 
     // Get the initial type. If -1, it was
     // a composite type definition, return this
@@ -700,7 +730,7 @@ int declaration_list(struct symtable** ctype, int class, int et1, int et2)
         type = parse_stars(inittype);
 
         // Parse this symbol
-        sym = symbol_declaration(type, *ctype, class);
+        sym = symbol_declaration(type, *ctype, class, &tree);
 
         // We parsed a function, there is no list so leave
         if (sym->stype == S_FUNCTION) 
@@ -709,6 +739,14 @@ int declaration_list(struct symtable** ctype, int class, int et1, int et2)
                 fatal("Function definition not at global level");
             return (type);
         }
+
+
+        // Glue any AST tree from a local declaration
+       // to build a sequence of assignments to perform
+        if (*gluetree == NULL)
+            *gluetree = tree;
+        else
+            *gluetree = mkastnode(A_GLUE, P_NONE, *gluetree, NULL, tree, NULL, 0);
 
         // We are at the end of the list, leave
         if (Token.token == et1 || Token.token == et2)
@@ -724,9 +762,10 @@ int declaration_list(struct symtable** ctype, int class, int et1, int et2)
 void global_declarations(void)
 {
     struct symtable* ctype;
+    struct ASTnode* unused;
     while (Token.token != T_EOF) 
     {
-        declaration_list(&ctype, C_GLOBAL, T_SEMI, T_EOF);// declaration_list的举例子
+        declaration_list(&ctype, C_GLOBAL, T_SEMI, T_EOF, &unused);// declaration_list的举例子
         /*
         * 因为一个声明链表为 ; 为最后
         */

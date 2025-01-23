@@ -2,8 +2,7 @@
 #include "data.h"
 #include "decl.h"
 
-// Symbol table functions
-// Copyright (c) 2019 Warren Toomey, GPL3
+
 
 // Append a node to the singly-linked list pointed to by head or tail
 void appendsym(struct symtable** head, struct symtable** tail,

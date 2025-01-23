@@ -32,13 +32,13 @@ static int chrpos(char* s, int c)
 }
 
 
- int next(void)
+int next(void)
 // 获取输入文件中的下一个字符
 {
     int c, //获取的字符
         l; // 行号
 
-    if (Putback) 
+    if (Putback)
     {			//字符输入
         c = Putback;			// 需要返回的
         Putback = 0;
@@ -102,9 +102,9 @@ static int scanch(void)   // 主要用于识别 转义字符
     // Get the next input character and interpret
     // metacharacters that start with a backslash
     c = next();
-    if (c == '\\') 
+    if (c == '\\')
     {
-        switch (c = next()) 
+        switch (c = next())
         {
         case 'a':
             return '\a'; //蜂鸣器
@@ -161,7 +161,7 @@ static int scanstr(char* buf)
     int i, c;
 
     // Loop while we have enough buffer space
-    for (i = 0; i < TEXTLEN - 1; i++) 
+    for (i = 0; i < TEXTLEN - 1; i++)
     {
         // Get the next char and append to buf
         // Return when we hit the ending double quote
@@ -212,11 +212,11 @@ int scan(struct token* t)
         printf("输入文件已经扫描完成\n");
         return 0;
     case '+':
-        if ((c = next()) == '+') 
+        if ((c = next()) == '+')
         {
             t->token = T_INC;  // 自增
         }
-        else 
+        else
         {
             putback(c);
             t->token = T_PLUS;
@@ -231,7 +231,7 @@ int scan(struct token* t)
         {
             t->token = T_ARROW;// ->
         }
-        else 
+        else
         {
             putback(c);
             t->token = T_MINUS;
@@ -248,11 +248,11 @@ int scan(struct token* t)
         break;
     case ';':
         t->token = T_SEMI;
-        break;   
+        break;
     case ',':
         t->token = T_COMMA; // （ ,  , ）
         break;
-        
+
     case'=':
         if ((c = next()) == '=') // 不用担心当前为真 因为最终回在 putback中先获取
         {
@@ -276,7 +276,7 @@ int scan(struct token* t)
             putback(c);
             t->token = T_LOGNOT;  // 逻辑非
             break;
-            
+
         }
     case '>':
         if ((c = next()) == '=')
@@ -287,7 +287,7 @@ int scan(struct token* t)
         {
             t->token = T_RSHIFT; // 右移
         }
-        else 
+        else
         {
             putback(c);
             t->token = T_GT;
@@ -332,11 +332,11 @@ int scan(struct token* t)
         break;
 
     case '|':
-        if ((c = next()) == '|') 
+        if ((c = next()) == '|')
         {
             t->token = T_LOGOR; // 与
         }
-        else 
+        else
         {
             putback(c);
             t->token = T_OR; // 按位与
