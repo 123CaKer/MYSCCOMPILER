@@ -600,7 +600,7 @@ int parse_literal(int type)
     // Set the offset of the initial member
     // and find the first free byte after it
     m = ctype->member;
-    m->posn = 0;
+    m->st_posn = 0;
     offset = typesize(m->type, m->ctype);
 
     // Set the position of each successive member in the composite type
@@ -608,9 +608,9 @@ int parse_literal(int type)
     for (m = m->next; m != NULL; m = m->next) {
         // Set the offset for this member
         if (type == P_STRUCT)
-            m->posn = genalign(m->type, offset, 1);
+            m->st_posn = genalign(m->type, offset, 1);
         else
-            m->posn = 0;
+            m->st_posn = 0;
 
         // Get the offset of the next free byte after this member
         offset += typesize(m->type, m->ctype);

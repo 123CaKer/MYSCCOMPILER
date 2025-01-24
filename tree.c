@@ -17,7 +17,7 @@ struct ASTnode* mkastnode(int op, int type, struct ASTnode* left,
     n->left = left;
     n->mid = mid;
     n->right = right;
-    n->intvalue = intvalue; // 抽象语法树节点赋值
+    n->a_intvalue = intvalue; // 抽象语法树节点赋值
     n->type = type;
     n->sym = sym;
     /*
@@ -66,10 +66,8 @@ static int gendumplabel(void) {
 
 /// <summary>
 /// 新添加函数  用于dump
-/// // Given an AST tree, print it out and follow the
+// Given an AST tree, print it out and follow the
 // traversal of the tree that genAST() follows
-/// <param name="label"></param>
-/// <param name="level"></param>
 void dumpAST(struct ASTnode* n, int label, int level) {
     int Lfalse, Lstart, Lend;
 
@@ -152,10 +150,10 @@ void dumpAST(struct ASTnode* n, int label, int level) {
         fprintf(stdout, "A_GE\n");
         return;
     case A_INTLIT:
-        fprintf(stdout, "A_INTLIT %d\n", n->intvalue);
+        fprintf(stdout, "A_INTLIT %d\n", n->a_intvalue);
         return;
     case A_STRLIT:
-        fprintf(stdout, "A_STRLIT rval label L%d\n", n->intvalue);
+        fprintf(stdout, "A_STRLIT rval label L%d\n", n->a_intvalue);
         return;
     case A_IDENT:
         if (n->rvalue)
@@ -185,7 +183,7 @@ void dumpAST(struct ASTnode* n, int label, int level) {
             fprintf(stdout, "A_DEREF\n");
         return;
     case A_SCALE:
-        fprintf(stdout, "A_SCALE %d\n", n->size);
+        fprintf(stdout, "A_SCALE %d\n", n->a_size);
         return;
     case A_PREINC:
         fprintf(stdout, "A_PREINC %s\n", n->sym->name);
@@ -209,13 +207,28 @@ void dumpAST(struct ASTnode* n, int label, int level) {
         fprintf(stdout, "A_CONTINUE\n");
         return;
     case A_CASE:
-        fprintf(stdout, "A_CASE %d\n", n->intvalue);
+        fprintf(stdout, "A_CASE %d\n", n->a_intvalue);
         return;
     case A_DEFAULT:
         fprintf(stdout, "A_DEFAULT\n");
         return;
     case A_SWITCH:
         fprintf(stdout, "A_SWITCH\n");
+        return;
+    case A_CAST:
+        fprintf(stdout, "A_CAST %d\n", n->type);
+        return;
+    case A_ASPLUS:
+        fprintf(stdout, "A_ASPLUS\n");
+        return;
+    case A_ASMINUS:
+        fprintf(stdout, "A_ASMINUS\n");
+        return;
+    case A_ASSTAR:
+        fprintf(stdout, "A_ASSTAR\n");
+        return;
+    case A_ASSLASH:
+        fprintf(stdout, "A_ASSLASH\n");
         return;
     default:
         fatald("Unknown dumpAST operator", n->op);

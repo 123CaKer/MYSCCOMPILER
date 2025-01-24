@@ -327,12 +327,12 @@ static struct ASTnode* switch_statement(void) {
                 // Ensure the case value is an integer literal
                 if (left->op != A_INTLIT)
                     fatal("Expecting integer literal for case value");
-                casevalue = left->intvalue;
+                casevalue = left->a_intvalue;
 
                 // Walk the list of existing case values to ensure
                 // that there isn't a duplicate case value
                 for (c = casetree; c != NULL; c = c->right)
-                    if (casevalue == c->intvalue)
+                    if (casevalue == c->a_intvalue)
                         fatal("Duplicate case value");
             }
 
@@ -358,7 +358,7 @@ static struct ASTnode* switch_statement(void) {
 
     // We have a sub-tree with the cases and any default. Put the
     // case count into the A_SWITCH node and attach the case tree.
-    n->intvalue = casecount;
+    n->a_intvalue = casecount;
     n->right = casetree;
     rbrace();
 

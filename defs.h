@@ -38,7 +38,9 @@ enum {
 	T_EOF,
 
 	// Binary operators
-	T_ASSIGN, T_LOGOR, T_LOGAND,
+	T_ASSIGN, T_ASPLUS, T_ASMINUS,
+	T_ASSTAR, T_ASSLASH,
+	T_LOGOR, T_LOGAND,
 	T_OR, T_XOR, T_AMPER,
 	T_EQ, T_NE,
 	T_LT, T_GT, T_LE, T_GE,
@@ -65,12 +67,12 @@ enum {
 };
 
 
-
 // AST 节点类型
 // AST node types. The first few line up
 // with the related tokens
 enum {
-	A_ASSIGN = 1, A_LOGOR, A_LOGAND, A_OR, A_XOR, A_AND,
+	A_ASSIGN = 1, A_ASPLUS, A_ASMINUS, A_ASSTAR, A_ASSLASH,
+	A_LOGOR, A_LOGAND, A_OR, A_XOR, A_AND,
 	A_EQ, A_NE, A_LT, A_GT, A_LE, A_GE, A_LSHIFT, A_RSHIFT,
 	A_ADD, A_SUBTRACT, A_MULTIPLY, A_DIVIDE,
 	A_INTLIT, A_STRLIT, A_IDENT, A_GLUE,
@@ -121,14 +123,13 @@ struct ASTnode
 	struct ASTnode* right;
 	int rvalue;                   // 是否为右值 1 为右边
 	struct symtable* sym;		// For many AST nodes, the pointer to
-	union
-	{
-		int intvalue;                         //整形数字
-	//	int id;                     // For A_IDENT, 符号表下标
-		int size;
-	};
-    #define a_intvalue a_size	// For A_INTLIT,  //整形数字
-	int a_size;			// For A_SCALE, the size to scale by
+	#define a_intvalue a_size	// For A_INTLIT, a_intvalue 整形数字
+	/*
+	This way, I still have two named fields sharing the same location in each struct,
+	but the compiler will see only the one field name in each struct
+	. I've given each #define a different prefix to prevent pollution of the global namespace.
+	*/
+     int a_size;			// For A_SCALE, the size to scale by
 };
 
 // 符号表存储类型 
@@ -145,6 +146,7 @@ enum {
 	C_TYPEDEF			// A named typedef
 };
 
+
 // 符号表
 struct symtable
 {
@@ -153,20 +155,21 @@ struct symtable
 	struct symtable* ctype;	     // 若为 struct/union, 指向其类型  struct/union, C_*** 为 符号表存储类型 
 	int stype;                    // 变量还是函数			
 	int class;                    // 符号表存储类型 全局还是局部
-	union 
-	{
-		int nelems;                 // For functions, # of params 形参个数
-		int posn;                  //  局部变量在符号表的位置 为-- 
-	};
-	union 
-	{
-		int size;			// 符号表中的符号数量
-		int endlabel;		// For functions, the end label 
-	};
-	int* initlist;		// List of initial values
-	struct symtable* next;	    // Next symbol in one list
-	struct symtable* member;	// First member of a function, struct,union or enum
-	                            // 函数的形参 结构体成员 第一个
+	int size;			// 符号表大小
+	int nelems;			// Functions: # params. Arrays: # elements 函数和形参的个数
+    #define st_endlabel st_posn	// For functions, the end label
+
+	/*
+	This way, I still have two named fields sharing the same location in each struct,
+	but the compiler will see only the one field name in each struct
+	. I've given each #define a different prefix to prevent pollution of the global namespace.
+	*/
+	int st_posn;			// For locals, the negative offset// from the stack base pointer （rbp）
+					  
+	int* initlist;		// 初始化列表 eg int a，v,c
+	struct symtable* next;	// Next symbol in one list
+	struct symtable* member;	// First member of a function, struct, union or enum 函数的形参 结构体成员 第一个
+				
 };
 
 

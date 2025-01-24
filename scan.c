@@ -6,7 +6,8 @@
 // List of token strings, for debugging purposes
 char* Tstring[] =
 {
-  "EOF", "=", "||", "&&", "|", "^", "&",
+  "EOF", "=", "+=", "-=", "*=", "/=",
+  "||", "&&", "|", "^", "&",
   "==", "!=", ",", ">", "<=", ">=", "<<", ">>",
   "+", "-", "*", "/", "++", "--", "~", "!",
   "void", "char", "int", "long",
@@ -18,6 +19,7 @@ char* Tstring[] =
   "{", "}", "(", ")", "[", "]", ",", ".",
   "->", ":"
 };
+
 
 
 // rejtoken 指针
@@ -216,6 +218,10 @@ int scan(struct token* t)
         {
             t->token = T_INC;  // 自增
         }
+        else if (c == '=')
+        {
+            t->token = T_ASPLUS;// +=
+        }
         else
         {
             putback(c);
@@ -223,15 +229,24 @@ int scan(struct token* t)
         }
         break;
     case '-':
-        if ((c = next()) == '-')
+        if ((c = next()) == '-')  // --
         {
-            t->token = T_DEC;// 自减
-        }
-        else if (c == '>')
+            t->token = T_DEC;
+        } 
+        else if (c == '>')  // ->
         {
-            t->token = T_ARROW;// ->
+            t->token = T_ARROW;
         }
-        else
+        else if (c == '=')
+        {
+            t->token = T_ASMINUS; // -=
+        }
+        else if (isdigit(c))
+        {		// Negative int literal 负数
+            t->intvalue = -scanint(c);
+            t->token = T_INTLIT;
+        }
+        else 
         {
             putback(c);
             t->token = T_MINUS;
@@ -241,10 +256,26 @@ int scan(struct token* t)
         t->token = T_DOT;// .成员
         break;
     case '*':
-        t->token = T_STAR;
+        if ((c = next()) == '=') 
+        {
+            t->token = T_ASSTAR; // *=
+        }
+        else 
+        {
+            putback(c);
+            t->token = T_STAR;
+        }
         break;
     case '/':
-        t->token = T_SLASH;
+        if ((c = next()) == '=')
+        {
+            t->token = T_ASSLASH;
+        }
+        else
+        {
+            putback(c);
+            t->token = T_SLASH;
+        }
         break;
     case ';':
         t->token = T_SEMI;

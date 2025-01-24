@@ -6,7 +6,9 @@
 // 操作符优先级  
 static int OpPrec[] =
 {
-  0, 10, 20, 30,		// T_EOF, T_ASSIGN, T_LOGOR, T_LOGAND
+  0, 10, 10,			// T_EOF, T_ASSIGN, T_ASPLUS,
+  10, 10, 10,			// T_ASMINUS, T_ASSTAR, T_ASSLASH,
+  20, 30,			// T_LOGOR, T_LOGAND
   40, 50, 60,			// T_OR, T_XOR, T_AMPER 
   70, 70,			// T_EQ, T_NE
   80, 80, 80, 80,		// T_LT, T_GT, T_LE, T_GE
@@ -14,7 +16,6 @@ static int OpPrec[] =
   100, 100,			// T_PLUS, T_MINUS
   110, 110			// T_STAR, T_SLASH
 };
-
 // 递归下降语法
 #if 0
 primary_expression
@@ -240,7 +241,7 @@ static struct ASTnode* postfix(void)
         // 如果寻找值找到了
     {
         scan(&Token);// 略过
-        return (mkastleaf(A_INTLIT, P_INT, NULL, enumptr->posn));
+        return (mkastleaf(A_INTLIT, P_INT, NULL, enumptr->st_posn));
     }
 
 
@@ -351,12 +352,21 @@ static int op_precedence(int tokentype)
     return (prec);
 }
 
-//判断是否为右结合值   自右到左赋值 z=2；
+//判断是否为右结合值   自右到左赋值 z=2； 
+//从第chr 43之后 除了 = += -= *= /= 均为右结合性
+// 具体条件如下
+
+/*
+   a += b + c;          // needs to be parsed as
+   a += (b + c);        // not
+   (a += b) + c;
+
+*/
 static int rightassoc(int tokentype)
 {
-    if (tokentype == T_ASSIGN)
-        return 1;
-    return 0;
+    if (tokentype >= T_ASSIGN && tokentype <= T_ASSLASH)
+        return (1);// 具有右结合性
+    return (0);// 不具有
 }
 
 // 生成AST语法树 返回root为+ - * /的ast树  其中p为之前的优先级
@@ -606,7 +616,7 @@ struct ASTnode* member_access(int withpointer)
         fatals("No member found in struct/union: ", Text);
 
     // Build an A_INTLIT node with the offset
-    right = mkastleaf(A_INTLIT, P_INT, NULL, m->posn);
+    right = mkastleaf(A_INTLIT, P_INT, NULL, m->st_posn);
 
     // Add the member's offset to the base of the struct/union
     // and dereference it. Still an lvalue at this point
