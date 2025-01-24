@@ -621,6 +621,7 @@ struct ASTnode* primary()
 {
     struct ASTnode* n = NULL;
     int id;
+    int type = 0;// 转换的类型
     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
     switch (Token.token)
     {
@@ -644,12 +645,50 @@ struct ASTnode* primary()
 
         return postfix(); // 后缀表达式
 
-    case T_LPAREN:
+    case T_LPAREN:// 我们在这里弄强制类型转换 因为（char* ）a
+
         // Beginning of a parenthesised expression, skip the '('.
-        // Scan in the expression and the right parenthesis
         scan(&Token);
-        n = binexpr(0); // 优先计算（）内的
-        rparen(); // 匹配
+
+
+        // If the token after is a type identifier, this is a cast expression
+        switch (Token.token) 
+        {
+        case T_IDENT:
+            // We have to see if the identifier matches a typedef.
+            // If not, treat it as an expression.
+            if (findtypedef(Text) == NULL) 
+            {
+                n = binexpr(0); // ()内没有typedef' 说明是一个表达式 即使不是也当作表达式
+                                // 还有一种情况就是当作是变量typedef 时候 就会binexpr
+                break;
+            }
+        case T_VOID:
+        case T_CHAR:
+        case T_INT:
+        case T_LONG:
+        case T_STRUCT:
+        case T_UNION:
+        case T_ENUM:
+            // Get the type inside the parentheses
+            // 获取强制类型转换
+            type = parse_cast();
+            // Skip the closing ')' and then parse the following expression
+            rparen();
+            // 继续默认走下去
+        default:
+            n = binexpr(0); // 扫描表达式，把后面当作是个表达式
+        }
+
+        // We now have at least an expression in n, and possibly a non-zero type in type
+        // if there was a cast. Skip the closing ')' if there was no cast.
+        if (type == 0)// 如果不是强制转换，此处是匹配最上面的expr 即当前为一个表达式
+            rparen();  /*
+                           （x*1     ）rparen()
+                       */
+        else
+            // Otherwise, make a unary AST node for the cast
+            n = mkastunary(A_CAST, type, n, NULL, 0);
         return (n);
 
     default:

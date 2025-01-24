@@ -102,6 +102,22 @@ int parse_stars(int type)
     return (type);
 }
 
+// Parse a type which appears inside a cast
+// 解析强制转换
+int parse_cast(void)
+{
+    int type, class;
+    struct symtable* ctype;
+
+    // Get the type inside the parentheses
+    type = parse_stars(parse_type(&ctype, &class));
+
+    // Do some error checking. I'm sure more can be done
+    if (type == P_STRUCT || type == P_UNION || type == P_VOID)
+        fatal("Cannot cast to a struct, union or void type");
+    return(type);
+}
+
 // Given a type, check that the latest token is a literal
 // of that type. If an integer literal, return this value.
 // If a string literal, return the label number of the string.
@@ -111,8 +127,11 @@ int parse_literal(int type)
 {
 
     // We have a string literal. Store in memory and return the label
-    if ((type == pointer_to(P_CHAR)) && (Token.token == T_STRLIT))
-        return(genglobstr(Text));
+    if (Token.token == T_STRLIT) 
+    {
+        if (type == pointer_to(P_CHAR) || type == P_NONE)
+            return(genglobstr(Text));
+    }
 
     if (Token.token == T_INTLIT)
     {
@@ -120,6 +139,7 @@ int parse_literal(int type)
         {
         case P_CHAR: if (Token.intvalue < 0 || Token.intvalue > 255)
             fatal("Integer literal value too big for char type");
+        case P_NONE: // 释放cast （类型转换）
         case P_INT:
         case P_LONG: break;
         default: fatal("Type mismatch: integer literal vs. variable");
@@ -139,6 +159,7 @@ int parse_literal(int type)
     struct symtable* sym = NULL;
     struct ASTnode* varnode,//变量值节点
         * exprnode;// 表达式节点
+    int casttype;//强制类型转换的类型
     *tree = NULL;
 
     // Add this as a known scalar 仅为声明
@@ -176,6 +197,37 @@ int parse_literal(int type)
 
         if (class == C_GLOBAL)
         {
+
+            // If there is a cast
+            if (Token.token == T_LPAREN)
+            {
+                // Get the type in the cast
+                scan(&Token);
+                casttype = parse_cast();
+                rparen();
+
+                // Check that the two types are compatible. Change
+                // the new type so that the literal parse below works.
+                // A 'void *' casstype can be assigned to any pointer type.
+                // 第一种情况为释放掉强制类型转换 因为没必要 第二种为空指针强制类型转换
+                //  2==比如说 char *str= (void *)0;
+                /*
+
+                                    A_ASSIGN
+                                     /    \
+                                 A_CAST  A_IDENT
+                                    /      str
+                               A_INTLIT
+                                  0
+                */
+                if (casttype == type || (casttype == pointer_to(P_VOID) && ptrtype(type)))
+                    type = P_NONE;// 释放掉强制类型转换 因为没必要
+                else
+                    fatal("Type mismatch");
+            }
+
+
+
             // Create one initial value for the variable and
             // parse this value
             sym->initlist = (int*)malloc(sizeof(int));
@@ -225,6 +277,8 @@ int parse_literal(int type)
     int maxelems;		// int c[]={......} 大括号中最多10个
     int* initlist;	// The list of initial elements 
     int i = 0, j;
+    int casttype, //强制转换类型
+        newtype; // 新类型
 
     // Skip past the '['
     scan(&Token);
@@ -261,7 +315,7 @@ int parse_literal(int type)
         if (class != C_GLOBAL)
             fatals("Variable can not be initialised", varname);
         scan(&Token);
-
+       
         // Get the following left curly bracket
         match(T_LBRACE, "{");
 
@@ -279,10 +333,31 @@ int parse_literal(int type)
         while (1) 
         {
 
+            // Get the original type
+            newtype = type;
             // Check we can add the next value, then parse and add it
             if (nelems != -1 && i == maxelems)
                 fatal("Too many values in initialisation list");
-            initlist[i++] = parse_literal(type);// 解析文本
+
+
+            if (Token.token == T_LPAREN) 
+            {
+                // Get the type in the cast
+                scan(&Token);
+                casttype = parse_cast();
+                rparen();
+
+                // Check that the two types are compatible. Change
+                // the new type so that the literal parse below works.
+                // A 'void *' casstype can be assigned to any pointer type.
+                if (casttype == type || (casttype == pointer_to(P_VOID) && ptrtype(type)))
+                    newtype = P_NONE;
+                else
+                    fatal("Type mismatch");
+                newtype = P_NONE;
+            }
+
+            initlist[i++] = parse_literal(newtype);// 解析文本 传入的值为newtype
             scan(&Token);
 
             // Increase the list size if the original size was
@@ -294,7 +369,8 @@ int parse_literal(int type)
             }
 
             // Leave when we hit the right curly bracket
-            if (Token.token == T_RBRACE) {
+            if (Token.token == T_RBRACE) 
+            {
                 scan(&Token);
                 break;
             }
@@ -305,8 +381,10 @@ int parse_literal(int type)
 
         // Zero any unused elements in the initlist.
         // Attach the list to the symbol table entry
-        for (j = i; j < sym->nelems; j++) initlist[j] = 0;
-        if (i > nelems) nelems = i;
+        for (j = i; j < sym->nelems; j++)
+            initlist[j] = 0;
+        if (i > nelems)
+            nelems = i;
         sym->initlist = initlist;
     }
 

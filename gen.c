@@ -391,6 +391,8 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // a compare followed by a jump. Otherwise, set the register
         // to 0 or 1 based on it's zeroeness or non-zeroeness
         return (cgboolean(leftreg, parentASTop, iflabel));
+    case A_CAST:
+        return (leftreg);		// Not much to do
     default:
         fatald("Unknown AST operator", n->op);
     }

@@ -130,6 +130,14 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
 
     ltype = tree->type;
 
+    // XXX No idea on these yet
+    // 当前不适配结构体和联合体
+    if (ltype == P_STRUCT || ltype == P_UNION)
+        fatal("Don't know how to do this yet");
+    if (rtype == P_STRUCT || rtype == P_UNION)
+        fatal("Don't know how to do this yet");
+
+
     // Compare scalar int types
     if (inttype(ltype) && inttype(rtype))
     {
@@ -151,11 +159,17 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
             return (mkastunary(A_WIDEN, rtype, tree, NULL, 0));
     }
 
-    // For pointers on the left
-    if (ptrtype(ltype))
+    // For pointers （此处可用于强制类型转换）
+    if (ptrtype(ltype) && ptrtype(rtype))
     {
-        // OK is same type on right and not doing a binary op
-        if (op == 0 && ltype == rtype)
+        // We can compare them
+        if (op >= A_EQ && op <= A_GE)
+            return(tree);
+
+        // A comparison of the same type for a non-binary operation is OK,
+        // or when the left tree is of  `void *` type.
+        // 条件1 为 强制转换类型相同 条件2为空指针转换
+        if (op == 0 && (ltype == rtype || ltype == pointer_to(P_VOID)))
             return (tree);
     }
 

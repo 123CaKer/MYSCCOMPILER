@@ -78,7 +78,7 @@ enum {
 	A_FUNCCALL, A_DEREF, A_ADDR, A_SCALE,
 	A_PREINC, A_PREDEC, A_POSTINC, A_POSTDEC,
 	A_NEGATE, A_INVERT, A_LOGNOT, A_TOBOOL, A_BREAK,
-	A_CONTINUE, A_SWITCH, A_CASE, A_DEFAULT
+	A_CONTINUE, A_SWITCH, A_CASE, A_DEFAULT, A_CAST
 };
 
 // 变量类型 类型匹配
@@ -87,7 +87,7 @@ enum {
 // e.g. 0= no pointer, 1= pointer, 2= pointer pointer etc.
 enum 
 {
-	P_NONE//当前AST节点并不是表达式或者一种变量 例如 A_GLUE 
+	P_NONE//当前AST节点并不是表达式或者一种变量 例如 A_GLUE   P_NONE 用于释放类型限制详见chr 42
 	
 	, P_VOID = 16, P_CHAR = 32, P_INT = 48, P_LONG = 64, P_STRUCT = 80,
 	P_UNION=96
@@ -127,7 +127,8 @@ struct ASTnode
 	//	int id;                     // For A_IDENT, 符号表下标
 		int size;
 	};
-
+    #define a_intvalue a_size	// For A_INTLIT,  //整形数字
+	int a_size;			// For A_SCALE, the size to scale by
 };
 
 // 符号表存储类型 
