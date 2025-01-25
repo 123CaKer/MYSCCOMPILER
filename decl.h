@@ -139,3 +139,5 @@ int type_compatible(int* left, int* right, int onlyright);
  struct ASTnode* primary();//解析 token 并判断其对应的ASTNode （语义）
 // static 每个文件
 
+ // opt.c
+ struct ASTnode* optimise(struct ASTnode* n);

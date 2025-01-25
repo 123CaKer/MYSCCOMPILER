@@ -145,6 +145,7 @@
     <ClCompile Include="gen.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="misc.c" />
+    <ClCompile Include="opt.c" />
     <ClCompile Include="scan.c" />
     <ClCompile Include="stmt.c" />
     <ClCompile Include="sym.c" />

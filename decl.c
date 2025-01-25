@@ -520,11 +520,21 @@ int parse_literal(int type)
     // and the compound statement sub-tree
     tree = mkastunary(A_FUNCTION, type, tree, oldfuncsym, endlabel);
 
+    // Do optimisations on the AST tree
+    tree = optimise(tree);
+
+#if 0
+
     // Generate the assembly code for it
-    if (O_dumpAST) {
+    if (O_dumpAST)
+    {
         dumpAST(tree, NOLABEL, 0);
         fprintf(stdout, "\n\n");
     }
+
+#endif // 0
+
+  
     genAST(tree, NOLABEL, NOLABEL, NOLABEL, 0);
 
     // Now free the symbols associated

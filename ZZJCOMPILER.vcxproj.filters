@@ -48,6 +48,9 @@
     <ClCompile Include="types.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="opt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.h">
