@@ -95,11 +95,38 @@ static int skip(void)
     return c;
 }
 
+
+//读取16进制常数
+ int hexchar(void)
+{
+    int c, h, n = 0,
+        f = 0;//f为1时为16进制数字
+
+    // Loop getting characters
+    while (isxdigit(c = next())) 
+    {
+        // Convert from char to int value
+        h = chrpos("0123456789abcdef", tolower(c));
+        //16 转换为10进制值
+        n = n * 16 + h;
+        f = 1;
+    }
+    // We hit a non-hex character, put it back
+    putback(c);// 最后while循环会判断调用c = next()
+    // Flag tells us we never saw any hex characters
+    if (!f)
+        fatal("missing digits after '\\x'");
+    if (n > 255)// 16进制数真值小于等于255
+        fatal("value out of range after '\\x'");
+    return n;
+}
+
+
 // Return the next character from a character
 // or string literal
-static int scanch(void)   // 主要用于识别 转义字符
+ int scanch(void)   // 主要用于识别 转义字符
 {
-    int c;
+     int i, c, c2;
 
     // Get the next input character and interpret
     // metacharacters that start with a backslash
@@ -128,6 +155,30 @@ static int scanch(void)   // 主要用于识别 转义字符
             return '"';// 双引号
         case '\'':
             return '\'';
+    // Deal with octal constants by reading in
+    // characters until we hit a non-octal digit.
+    // Build up the octal value in c2 and count
+    // # digits in i. Permit only 3 octal digits.
+            // 下面处理八进制值
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+            for (i = c2 = 0; isdigit(c) && c < '8'; c = next()) 
+            {
+                if (++i > 3)// subc8进制仅能4位数
+                    break;
+                c2 = c2 * 8 + (c - '0');// 计算八进制值
+            }
+            putback(c);		// 同16进制回撤
+            return (c2);
+        case 'x':
+            return hexchar();
+
         default:
             fatalc("unknown escape sequence", c);
         }
@@ -140,19 +191,42 @@ static int scanch(void)   // 主要用于识别 转义字符
 static int scanint(int c)
 // 从输入文件中扫描并返回整形数据 
 {
-    int k, val = 0;
+    int k, val = 0,radix = 10;// radix是进制
 
-    // Convert each character into an int value
-    while ((k = chrpos("0123456789", c)) >= 0)
+  
+    if (c == '0') //如果第一个字符是0
     {
-        val = val * 10 + k;
+        // 下一个是x
+        if ((c = next()) == 'x')
+        {
+            radix = 16;
+            c = next();
+        }
+        else
+            radix = 8;
+
+    }
+    // Convert each character into an int value
+    while ((k = chrpos("0123456789abcdef", tolower(c))) >= 0)
+    {
+        if (k >= radix)
+            fatalc("invalid digit in integer literal", c);
+        val = val * radix + k;//0xval val*16 + k
+        /*
+            举例 56
+              第一遍 v=0*10+5 =5
+              第二遍 v=5*10+6=56
+              非常重点的一种数据转换方法
+        */
         c = next();
     }
 
 
     putback(c);// 不是的话就返回
-    return val;
+    return (val);
 }
+
+
 
 
 // Scan in a string literal from the input file,
@@ -196,6 +270,16 @@ int scan(struct token* t)
     int tokentype;
 
 
+    // If we have a lookahead token, return this token
+    if (Peektoken.token != 0) 
+    {
+        t->token = Peektoken.token;
+        t->tokstr = Peektoken.tokstr;
+        t->intvalue = Peektoken.intvalue;
+        Peektoken.token = 0;
+        return (1);
+    }
+    // 然后之后下一次去扫描他变为真正的token
 
     // 查看是否有之前拒绝的token 若有的话将全局token 设置为Rejtoken并返回
     if (Rejtoken != NULL)

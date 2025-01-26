@@ -450,13 +450,31 @@ int parse_literal(int type)
     // Loop getting any parameters
     while (Token.token != T_RPAREN) 
     {
+
+        // 第一个'void'
+        if (Token.token == T_VOID)
+        {
+            // Peek at the next token. If a ')', the function
+            // has no parameters, so leave the loop.
+            scan(&Peektoken);// 在chr 46中peektoken的作用是为了维护(void)
+            if (Peektoken.token == T_RPAREN) 
+            {
+                // Move the Peektoken into the Token
+                paramcnt = 0; 
+                scan(&Token); // 则扫描下一个及真正的token 其实就是Peektoken
+                break;
+            }
+        }
+
         // Get the type of the next parameter
         type = declaration_list(&ctype, C_PARAM, T_COMMA, T_RPAREN, & unused);
         if (type == -1)
             fatal("Bad type in parameter list");
 
         // Ensure the type of this parameter matches the prototype
-        if (protoptr != NULL) {
+        // 确保参数与函数声明的类型匹配
+        if (protoptr != NULL)
+        {
             if (type != protoptr->type)
                 fatald("Type doesn't match prototype for parameter", paramcnt + 1);
             protoptr = protoptr->next;
@@ -487,7 +505,7 @@ int parse_literal(int type)
 {
     struct ASTnode* tree, * finalstmt;
     struct symtable* oldfuncsym, * newfuncsym = NULL;
-    int endlabel, paramcnt;
+    int endlabel=0, paramcnt;
 
     // Text has the identifier's name. If this exists and is a
     // function, get the id. Otherwise, set oldfuncsym to NULL.

@@ -18,6 +18,7 @@ FILE* Outfile;  // 输出文件指针
 char* Infilename;		// Name of file we are parsing
 char* Outfilename;		// Name of file we opened as Outfile
 struct token	Token;  // 全局令牌
+struct token Peektoken;		// 全局令牌的下一个
 char Text[TEXTLEN + 1];		// 标识符存储 buff
 //struct symtable Gsym[NSYMBOLS]; // 全局符号表 存储变量名等
 struct symtable* Functionid; 	// 当前函数的符号表下标识符,现在修改为struct symtable* 当前为函数符号链表
