@@ -118,36 +118,67 @@ int parse_cast(void)
     return(type);
 }
 
-// Given a type, check that the latest token is a literal
-// of that type. If an integer literal, return this value.
+// Given a type, parse an expression of literals and ensure
+// that the type of this expression matches the given type.
+// Parse any type cast that precedes the expression.
+// If an integer literal, return this value.
 // If a string literal, return the label number of the string.
-// Do not scan the next token.
 // 解析是否为字符串或者字符常量 或者其他常量
 int parse_literal(int type)
 {
+    struct ASTnode* tree;
 
-    // We have a string literal. Store in memory and return the label
-    if (Token.token == T_STRLIT) 
+    tree = optimise(binexpr(0));// 生成fold ast节点
+
+
+     // If there's a cast, get the child and
+  // mark it as having the type from the cast
+    /*
+                                    A_CAST  
+                                    /     
+                               A_INTLIT
+                                  0
+    
+    */
+
+    if (tree->op == A_CAST)
     {
-        if (type == pointer_to(P_CHAR) || type == P_NONE)
-            return(genglobstr(Text));
+        tree->left->type = tree->type;
+        tree = tree->left;
     }
 
-    if (Token.token == T_INTLIT)
+    
+    if (tree->op != A_INTLIT && tree->op != A_STRLIT)
+        fatal("Cannot initialise globals with a general expression");
+
+    // If the type is char * and
+    // 当前是char* 指针
+    if (type == pointer_to(P_CHAR))
     {
-        switch (type)
-        {
-        case P_CHAR: if (Token.intvalue < 0 || Token.intvalue > 255)
-            fatal("Integer literal value too big for char type");
-        case P_NONE: // 释放cast （类型转换）
-        case P_INT:
-        case P_LONG: break;
-        default: fatal("Type mismatch: integer literal vs. variable");
-        }
+        // We have a string literal, return the label number
+        // 如果类型为"xsxasxas" bss代码段
+        if (tree->op == A_STRLIT)
+            return(tree->a_intvalue);// 返回字符串地址
+         // 否则
+        if (tree->op == A_INTLIT && tree->a_intvalue == 0)
+            return(0);// 当前为 （xxx *）0 NULL
     }
-    else
-        fatal("Expecting an integer literal value");
-    return(Token.intvalue);// 返回token的INTLIT值
+
+
+    // 当前仅为变量
+    // We only get here with an integer literal. The input type
+    // is an integer type and is wide enough to hold the literal value
+
+    /*
+      long  x= 3;    // 3 可以被赋值到x
+      char  y= 4000; // 4000 不可以 因为 y太小 
+      详见 chr 45
+    */
+    if (inttype(type) && typesize(type, NULL) >= typesize(tree->type, NULL))
+        return(tree->a_intvalue);
+
+    fatal("Type mismatch: literal vs. variable");
+    return(0);	// 保证所有路径都有返回值
 }
 
 // Given the type, name and class of a scalar variable,
@@ -198,9 +229,13 @@ int parse_literal(int type)
         if (class == C_GLOBAL)
         {
 
+#if 0
+
             // If there is a cast
             if (Token.token == T_LPAREN)
             {
+
+
                 // Get the type in the cast
                 scan(&Token);
                 casttype = parse_cast();
@@ -226,13 +261,13 @@ int parse_literal(int type)
                     fatal("Type mismatch");
             }
 
-
-
+#endif // 0
+   
             // Create one initial value for the variable and
             // parse this value
             sym->initlist = (int*)malloc(sizeof(int));
-            sym->initlist[0] = parse_literal(type);
-            scan(&Token);
+            sym->initlist[0] = parse_literal(type); // 在第chr 45 中parse_literal已经带有强制类型转换
+         //   scan(&Token);
         }
 
 
@@ -283,16 +318,15 @@ int parse_literal(int type)
     // Skip past the '['
     scan(&Token);
 
-    // See we have an array size 其实这里可以改为 一个binexpr
-    if (Token.token == T_INTLIT) 
+    // See we have an array size 其实这里可以改为 一个binexpr 当前在chr 45 实现
+    if (Token.token != T_LBRACKET) 
     {
-        if (Token.intvalue <= 0)
-            fatald("Array size is illegal", Token.intvalue);
-        nelems = Token.intvalue;
-        scan(&Token);
+        nelems = parse_literal(P_INT);// 经过变量折叠技术 将当前编译器值进行优化 
+        if (nelems <= 0)
+            fatald("Array size is illegal", nelems);
     }
 
-    // Ensure we have a following ']'
+    // 匹配 ']'
     match(T_RBRACKET, "]");
 
     // Add this as a known array. We treat the
