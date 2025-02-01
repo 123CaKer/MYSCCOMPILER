@@ -57,7 +57,7 @@ enum {
 	T_IF, T_ELSE, T_WHILE, T_FOR, T_RETURN,
 	T_STRUCT, T_UNION, T_ENUM, T_TYPEDEF,
 	T_EXTERN, T_BREAK, T_CONTINUE, T_SWITCH,
-	T_CASE, T_DEFAULT,
+	T_CASE, T_DEFAULT, T_SIZEOF,
 
 	// Structural tokens
 	T_INTLIT, T_STRLIT, T_SEMI, T_IDENT,
@@ -65,7 +65,6 @@ enum {
 	T_LBRACKET, T_RBRACKET, T_COMMA, T_DOT,
 	T_ARROW, T_COLON
 };
-
 
 // AST 节点类型
 // AST node types. The first few line up

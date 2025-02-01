@@ -632,9 +632,25 @@ struct ASTnode* primary()
     struct ASTnode* n = NULL;
     int id;
     int type = 0;// 转换的类型
+    int size = 0,class;//sizeof（）
+    struct symtable* ctype;
     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
     switch (Token.token)
     {
+    case T_SIZEOF:
+        // Skip the T_SIZEOF and ensure we have a left parenthesis
+        scan(&Token);
+        if (Token.token != T_LPAREN)
+            fatal("Left parenthesis expected after sizeof");
+        scan(&Token);
+
+        // Get the type inside the parentheses
+        type = parse_stars(parse_type(&ctype, &class));
+        // Get the type's size
+        size = typesize(type, ctype);
+        rparen();
+       
+        return (mkastleaf(A_INTLIT, P_INT, NULL, size));
 
     case T_STRLIT:
         // For a STRLIT token, generate the assembly for it.

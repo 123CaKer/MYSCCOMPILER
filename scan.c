@@ -4,7 +4,7 @@
 
 
 // List of token strings, for debugging purposes
-char* Tstring[] =
+char* Tstring[] = 
 {
   "EOF", "=", "+=", "-=", "*=", "/=",
   "||", "&&", "|", "^", "&",
@@ -14,12 +14,11 @@ char* Tstring[] =
   "if", "else", "while", "for", "return",
   "struct", "union", "enum", "typedef",
   "extern", "break", "continue", "switch",
-  "case", "default",
+  "case", "default", "sizeof",
   "intlit", "strlit", ";", "identifier",
   "{", "}", "(", ")", "[", "]", ",", ".",
   "->", ":"
 };
-
 
 
 // rejtoken 指针
@@ -566,6 +565,9 @@ int scan(struct token* t)
             case T_SWITCH:
                 t->token = T_SWITCH;
                 break;
+            case T_SIZEOF:
+                t->token = T_SIZEOF;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -652,6 +654,8 @@ static int keyword(char* s)  //获取关键字的类型值
             return (T_STRUCT);
         else if (!strcmp(s, "switch"))
             return (T_SWITCH);
+        else if (!strcmp(s, "sizeof"))
+            return (T_SIZEOF);
     case 'u':
         if (!strcmp(s, "union"))
             return (T_UNION);
