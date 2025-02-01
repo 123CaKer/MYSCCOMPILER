@@ -252,9 +252,9 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
       // or we are being dereferenced
         if (n->rvalue || parentASTop == A_DEREF)
         {
-            if (n->sym->class == C_GLOBAL)
+            if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC)
             {
-                return (cgloadglob(n->sym, n->op));
+                return (cgloadglob(n->sym, n->op));// C_GLOBAL和C_STATIC
             }
             else
             {
@@ -317,12 +317,12 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
             n->right = n->left;
             break;
         }
-        //在这里进行赋值
+        //在这里进行赋值（*p类型）
         // Are we assigning to an identifier or through a pointer?
         switch (n->right->op)
         {
         case A_IDENT:
-            if (n->right->sym->class == C_GLOBAL)
+            if (n->right->sym->class == C_GLOBAL|| n->right->sym->class == C_STATIC)
                 return (cgstorglob(leftreg, n->right->sym));
             else
                 return (cgstorlocal(leftreg, n->right->sym));
@@ -382,26 +382,26 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
     case A_POSTINC:
         // Load the variable's value into a register,
         // then increment it
-        if (n->sym->class == C_GLOBAL)
+        if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC)
             return (cgloadglob(n->sym, n->op));
         else
             return (cgloadlocal(n->sym, n->op));
     case A_POSTDEC:
         // Load the variable's value into a register,
         // then decrement it
-        if (n->sym->class == C_GLOBAL)
+        if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC)
             return (cgloadglob(n->sym, n->op));
         else
             return (cgloadlocal(n->sym, n->op));
     case A_PREINC:
         // Load and increment the variable's value into a register
-        if (n->left->sym->class == C_GLOBAL)
+        if (n->left->sym->class == C_GLOBAL || n->left->sym->class == C_STATIC)
             return (cgloadglob(n->left->sym, n->op));
         else
             return (cgloadlocal(n->left->sym, n->op));
     case A_PREDEC:
         // Load and decrement the variable's value into a register
-        if (n->left->sym->class == C_GLOBAL)
+        if (n->left->sym->class == C_GLOBAL || n->left->sym->class == C_STATIC)
             return (cgloadglob(n->left->sym, n->op));
         else
             return (cgloadlocal(n->left->sym, n->op));

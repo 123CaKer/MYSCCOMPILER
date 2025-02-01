@@ -14,7 +14,7 @@ char* Tstring[] =
   "if", "else", "while", "for", "return",
   "struct", "union", "enum", "typedef",
   "extern", "break", "continue", "switch",
-  "case", "default", "sizeof",
+  "case", "default", "sizeof", "static",
   "intlit", "strlit", ";", "identifier",
   "{", "}", "(", ")", "[", "]", ",", ".",
   "->", ":"
@@ -568,6 +568,9 @@ int scan(struct token* t)
             case T_SIZEOF:
                 t->token = T_SIZEOF;
                 break;
+            case T_STATIC:
+                t->token = T_STATIC;
+                break;
             default:
                 t->token = T_IDENT;
                 break;
@@ -656,6 +659,8 @@ static int keyword(char* s)  //获取关键字的类型值
             return (T_SWITCH);
         else if (!strcmp(s, "sizeof"))
             return (T_SIZEOF);
+        else if (!strcmp(s, "static"))
+            return (T_STATIC);
     case 'u':
         if (!strcmp(s, "union"))
             return (T_UNION);

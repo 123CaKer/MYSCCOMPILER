@@ -12,17 +12,27 @@ int parse_type(struct symtable** ctype, int* class)
 {
     int type, exstatic = 1;
 
-    // See if the class has been changed to extern (later, static)
+    // See if the class has been changed to extern and static
     while (exstatic) 
     {
         switch (Token.token) 
         {
         case T_EXTERN:
+            if (*class == C_STATIC) //extern static int a; 为非法
+                fatal("Illegal to have extern and static at the same time");
             *class = C_EXTERN;
             scan(&Token);
             break;
+        case T_STATIC:
+            if (*class == C_LOCAL)
+                fatal("Compiler doesn't support static local declarations");
+            if (*class == C_EXTERN)//extern static int a; 为非法
+                fatal("Illegal to have extern and static at the same time");
+            *class = C_STATIC;
+            scan(&Token);
+            break;
         default:
-            exstatic = 0;
+            exstatic = 0;// 不是exstatic 
         }
     }
 
@@ -196,6 +206,7 @@ int parse_literal(int type)
     // Add this as a known scalar 仅为声明
     switch (class)
     {
+    case C_STATIC:
     case C_EXTERN:
     case C_GLOBAL:
         sym = addglob(varname, type, ctype, S_VARIABLE, class, 1, 0);
@@ -219,14 +230,14 @@ int parse_literal(int type)
     if (Token.token == T_ASSIGN)
     {
         // 只可能是global 或者 local
-        if (class != C_GLOBAL && class != C_LOCAL)
+        if (class != C_GLOBAL && class != C_LOCAL && class != C_STATIC)
             fatals("Variable can not be initialised", varname);
         scan(&Token);
 
         // Globals must be assigned a literal value
-        // 在本c comp中目前必须实现全局初始化
-
-        if (class == C_GLOBAL)
+        // 在本c comp中目前必须实现全局初始化 static也是为global的一种但是要区分
+        //if (class == C_GLOBAL || class == C_STATIC)为最新条件
+        if (class == C_GLOBAL || class == C_STATIC)
         {
 
 #if 0
@@ -294,7 +305,7 @@ int parse_literal(int type)
     }
 
     //生成全局空间
-    if (class == C_GLOBAL)
+    if (class == C_GLOBAL || class == C_STATIC)
         genglobsym(sym);
 
     return (sym);
@@ -334,6 +345,7 @@ int parse_literal(int type)
     // 队列添加
     switch (class)
     {
+    case C_STATIC:
     case C_EXTERN:
     case C_GLOBAL:
         sym = addglob(varname, pointer_to(type), ctype, S_ARRAY, class,
@@ -346,7 +358,7 @@ int parse_literal(int type)
     // 队列初始化 之前为赋值
     if (Token.token == T_ASSIGN) 
     {
-        if (class != C_GLOBAL)
+        if (class != C_GLOBAL|| class != C_STATIC)
             fatals("Variable can not be initialised", varname);
         scan(&Token);
        
@@ -425,8 +437,8 @@ int parse_literal(int type)
     // Set the size of the array and the number of elements
     sym->nelems = nelems;//当前数组符号表的个数
     sym->size = sym->nelems * typesize(type, ctype);//当前数组符号表的大小
-    // Generate any global space
-    if (class == C_GLOBAL)
+    // Generate any global and static space
+    if (class == C_GLOBAL || class == C_STATIC)
         genglobsym(sym);
     return (sym);
 }
@@ -821,8 +833,10 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype,int class,s
         return (function_declaration(varname, type, ctype, class));
     }
     // See if this array or scalar variable has already been declared
-    switch (class) {
+    switch (class)
+    {
     case C_EXTERN:
+    case C_STATIC:
     case C_GLOBAL:
         if (findglob(varname) != NULL)
             fatals("Duplicate global variable declaration", varname);
@@ -875,7 +889,7 @@ int declaration_list(struct symtable** ctype, int class, int et1, int et2,struct
         // We parsed a function, there is no list so leave
         if (sym->stype == S_FUNCTION) 
         {
-            if (class != C_GLOBAL)// 函数为全局
+            if (class != C_GLOBAL && class != C_STATIC)// 函数为全局
                 fatal("Function definition not at global level");
             return (type);
         }

@@ -128,6 +128,7 @@ struct symtable* addglob(char* name, int type, struct symtable* ctype,int stype,
 void clear_symtable(void);
 struct symtable* findmember(char* s);
 struct symtable* findstruct(char* s);
+void freestaticsyms(void);
 
 
 

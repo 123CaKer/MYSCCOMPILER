@@ -637,6 +637,9 @@ struct ASTnode* primary()
     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
     switch (Token.token)
     {
+    case T_STATIC:
+    case T_EXTERN:
+        fatal("Compiler doesn't support static or extern local declarations");
     case T_SIZEOF:
         // Skip the T_SIZEOF and ensure we have a left parenthesis
         scan(&Token);

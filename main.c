@@ -108,8 +108,8 @@ void doer(char* p , char* q) // p为输入文件，q为输出文件
     global_declarations();
     genpostamble(); // 输出 postable
     fclose(Outfile);
+    freestaticsyms();             // Free any static symbols in the file
     fclose(Infile);
-
     exit(0);
 }
 
