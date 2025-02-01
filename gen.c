@@ -172,6 +172,48 @@ static int genSWITCH(struct ASTnode* n)
     return (NOREG);
 }
 
+// 生成三元运算符表达式 类似为if
+static int gen_ternary(struct ASTnode* n) 
+{
+    int Lfalse, Lend;
+    int reg, expreg;
+
+    // Generate two labels: one for the
+    // false expression, and one for the
+    // end of the overall expression
+    Lfalse = genlabel();
+    Lend = genlabel();
+
+    // Generate the condition code followed
+    // by a jump to the false label.
+    // 条件表达式
+    genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);
+    genfreeregs(NOREG);
+
+    // Get a register to hold the result of the two expressions
+    reg = alloc_register();
+
+    // Generate the true expression and the false label.
+    // Move the expression result into the known register.
+    // 生成真表达式
+    expreg = genAST(n->mid, NOLABEL, NOLABEL, NOLABEL, n->op);
+    cgmove(expreg, reg);
+    // Don't free the register holding the result, though!
+    genfreeregs(reg);
+    cgjump(Lend);
+    cglabel(Lfalse);//生成假标签
+
+    // Generate the false expression and the end label.
+    // Move the expression result into the known register.
+     // 生成假表达式
+    expreg = genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
+    cgmove(expreg, reg);
+    // Don't free the register holding the result, though!
+    genfreeregs(reg);
+    cglabel(Lend);
+    return (reg);// 返回未释放reg下标
+}
+
 
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
@@ -189,6 +231,8 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         return genWHILE(n);
     case A_SWITCH:
         return (genSWITCH(n));
+    case A_TERNARY:
+        return (gen_ternary(n));//  三元运算符
     case A_FUNCCALL: // 函数调用
         return (gen_funccall(n)); // 将当前函数传入（A_FUNCALL）
     case A_GLUE:
@@ -448,21 +492,21 @@ void genpostamble()
 {
     cgpostamble();
 }
-void genfreeregs()
+void genfreeregs(int keepreg)
 {
-    freeall_registers();
+    freeall_registers(keepreg);
 }
+
 #if 0
 void genprintint(int reg)
 {
     cgprintint(reg);
 }
 #endif
-void genglobsym(int id)
+void genglobsym(struct symtable* node)
 {
-    cgglobsym(id);
+    cgglobsym(node);
 }
-
 // 生成字符串的汇编代码
 int genglobstr(char* strvalue)
 {

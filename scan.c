@@ -392,6 +392,9 @@ int scan(struct token* t)
             break;
 
         }
+    case '?':
+        t->token = T_QUESTION; // ÈýÔªÔËËã·û ?
+        break;
     case '>':
         if ((c = next()) == '=')
         {

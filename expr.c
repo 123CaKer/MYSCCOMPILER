@@ -8,6 +8,7 @@ static int OpPrec[] =
 {
   0, 10, 10,			// T_EOF, T_ASSIGN, T_ASPLUS,
   10, 10, 10,			// T_ASMINUS, T_ASSTAR, T_ASSLASH,
+  15,				// T_QUESTION,
   20, 30,			// T_LOGOR, T_LOGAND
   40, 50, 60,			// T_OR, T_XOR, T_AMPER 
   70, 70,			// T_EQ, T_NE
@@ -16,6 +17,8 @@ static int OpPrec[] =
   100, 100,			// T_PLUS, T_MINUS
   110, 110			// T_STAR, T_SLASH
 };
+
+
 // µÝ¹éÏÂ½µÓï·¨
 #if 0
 primary_expression
@@ -421,7 +424,23 @@ struct ASTnode* binexpr(int p)
 
 
         ASTop = arithop(tokentype);
-        if (ASTop == A_ASSIGN)
+        if (ASTop == A_TERNARY)
+        {
+            // Ensure we have a ':' token, scan in the expression after it
+            match(T_COLON, ":");
+            ltemp = binexpr(0);
+
+            //  Use the middle expression's type as the return type. XXX We should also
+            // consider the third expression's type.
+            return (mkastnode(A_TERNARY, right->type, left, right, ltemp, NULL, 0));
+            // left ? right : ltemp
+             /*
+                      A_TERNARY
+                   /      |     \
+                 left   right    ltemp
+            */
+        }
+        else if (ASTop == A_ASSIGN)
         {
 
             right->rvalue = 1;

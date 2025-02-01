@@ -2,6 +2,9 @@
 #include "data.h"
 #include "decl.h"
 
+// Code generator for x86-64
+// Copyright (c) 2019 Warren Toomey, GPL3
+
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
 
@@ -103,14 +106,18 @@ static char* dreglist[] =
 };
 
 
-// Set all registers as available
-void freeall_registers(void) {
-    freereg[0] = freereg[1] = freereg[2] = freereg[3] = 1;
+// Set all registers as available.
+// But if reg is positive, don't free that one.
+void freeall_registers(int keepreg) {
+    int i;
+    for (i = 0; i < NUMFREEREGS; i++)
+        if (i != keepreg)
+            freereg[i] = 1;
 }
 
 // Allocate a free register. Return the number of
 // the register. Die if no available registers.
-static int alloc_register(void) {
+int alloc_register(void) {
     for (int i = 0; i < NUMFREEREGS; i++) {
         if (freereg[i]) {
             freereg[i] = 0;
@@ -131,11 +138,12 @@ static void free_register(int reg) {
 
 // Print out the assembly preamble
 void cgpreamble() {
-    freeall_registers();
+    freeall_registers(NOREG);
     cgtextseg();
     fprintf(Outfile,
         "# internal switch(expr) routine\n"
         "# %%rsi = switch table, %%rax = expr\n"
+        "# from SubC: http://www.t3x.org/subc/\n"
         "\n"
         "switch:\n"
         "        pushq   %%rsi\n"
@@ -176,11 +184,8 @@ void cgfuncpreamble(struct symtable* sym) {
 
     // Output the function start, save the %rsp and %rsp
     if (sym->class == C_GLOBAL)
-        fprintf(Outfile, "\t.globl\t%s\n"
-            "\t.type\t%s, @function\n", name, name);
-    fprintf(Outfile,
-        "%s:\n" "\tpushq\t%%rbp\n"
-        "\tmovq\t%%rsp, %%rbp\n", name);
+        fprintf(Outfile, "\t.globl\t%s\n" "\t.type\t%s, @function\n", name, name);
+    fprintf(Outfile, "%s:\n" "\tpushq\t%%rbp\n" "\tmovq\t%%rsp, %%rbp\n", name);
 
     // Copy any in-register parameters to the stack, up to six of them
     // The remaining parameters are already on the stack
@@ -562,8 +567,9 @@ void cgglobsym(struct symtable* node) {
             break;
         case 8:
             // Generate the pointer to a string literal. Treat a zero value
-        // as actually zero, not the label L0
-            if (node->initlist != NULL && type == pointer_to(P_CHAR) && initvalue != 0)
+            // as actually zero, not the label L0
+            if (node->initlist != NULL && type == pointer_to(P_CHAR)
+                && initvalue != 0)
                 fprintf(Outfile, "\t.quad\tL%d\n", initvalue);
             else
                 fprintf(Outfile, "\t.quad\t%d\n", initvalue);
@@ -627,7 +633,7 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label) {
 
     fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]);
     fprintf(Outfile, "\t%s\tL%d\n", invcmplist[ASTop - A_EQ], label);
-    freeall_registers();
+    freeall_registers(NOREG);
     return (NOREG);
 }
 
@@ -751,4 +757,9 @@ void cgswitch(int reg, int casecount, int toplabel,
     fprintf(Outfile, "\tmovq\t%s, %%rax\n", reglist[reg]);
     fprintf(Outfile, "\tleaq\tL%d(%%rip), %%rdx\n", label);
     fprintf(Outfile, "\tjmp\tswitch\n");
+}
+
+// Move value between registers
+void cgmove(int r1, int r2) {
+    fprintf(Outfile, "\tmovq\t%s, %s\n", reglist[r1], reglist[r2]);
 }
