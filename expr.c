@@ -232,6 +232,9 @@ struct ASTnode* prefix()
 // Parse a postfix expression and return
 // an AST node representing it. The
 // identifier is already in Text.
+
+// chr 50 之前postfix代码
+#if 0  
 static struct ASTnode* postfix(void)
 {
     struct ASTnode* n;
@@ -289,6 +292,91 @@ static struct ASTnode* postfix(void)
         // Just a variable reference
     default:
         n = mkastleaf(A_IDENT, varptr->type, varptr, 0);
+    }
+    return (n);
+
+}
+#endif // 0  
+
+static struct ASTnode* postfix(void)
+{
+    struct ASTnode* n;
+    struct symtable* varptr; // 符号表指针
+    struct symtable* enumptr;
+    int rvalue = 0;
+
+    // If the identifier matches an enum value,
+ // return an A_INTLIT node
+    if ((enumptr = findenumval(Text)) != NULL)
+        // 如果寻找值找到了
+    {
+        scan(&Token);// 略过
+        return (mkastleaf(A_INTLIT, P_INT, NULL, enumptr->st_posn));
+    }
+
+
+    // Scan in the next token to see if we have a postfix expression
+    scan(&Token);
+
+    // 函数调用
+    if (Token.token == T_LPAREN)
+        return (funccall());
+
+    // 队列访问
+    if (Token.token == T_LBRACKET)
+        return (array_access());
+
+
+    // Access into a struct or union
+    if (Token.token == T_DOT)
+        return (member_access(0));
+    if (Token.token == T_ARROW)
+        return (member_access(1));
+
+    // An identifier, check that it exists. For arrays, set rvalue to 1.
+    if ((varptr = findsymbol(Text)) == NULL)
+        fatals("Unknown variable", Text);
+    switch (varptr->stype)
+    {
+    case S_VARIABLE: 
+        break;
+    case S_ARRAY: 
+        rvalue = 1;//S_ARRAY我们准备不用 array++ 功能 我们使用指针初始化在进行指向数组 同时抛弃&ary
+        break;
+    default:
+        fatals("Identifier not a scalar or array variable", Text);
+    }
+
+
+
+    switch (Token.token) 
+    {
+        // Post-increment: skip over the token
+    case T_INC:
+        if (rvalue == 1)//S_ARRAY我们准备不用 array++ 功能 我们使用指针初始化在进行指向数组 同时抛弃&ary
+            fatals("Cannot ++ on rvalue", Text);
+        scan(&Token);
+        n = mkastleaf(A_POSTINC, varptr->type, varptr, 0);
+        break;
+
+        // Post-decrement: skip over the token
+    case T_DEC:
+        if (rvalue == 1)
+            fatals("Cannot -- on rvalue", Text);
+        scan(&Token);
+        n = mkastleaf(A_POSTDEC, varptr->type, varptr, 0);
+        break;
+
+        // Just a variable reference. Ensure any arrays
+        // cannot be treated as lvalues.
+    default:
+        if (varptr->stype == S_ARRAY)
+        {
+            n = mkastleaf(A_ADDR, varptr->type, varptr, 0);
+            n->rvalue = rvalue;
+        }
+        else
+            n = mkastleaf(A_IDENT, varptr->type, varptr, 0);
     }
     return (n);
 
@@ -545,13 +633,30 @@ static struct ASTnode* array_access(void)
     struct symtable* aryptr;
 
     // 判断是否是array
-   // Check that the identifier has been defined as an array
-   // then make a leaf node for it that points at the base
-    if ((aryptr = findsymbol(Text)) == NULL || aryptr->stype != S_ARRAY)
-    {
-        fatals("Undeclared array", Text);
-    }
+   // Check that the identifier has been defined as an array or a pointer.
+  if ((aryptr = findsymbol(Text)) == NULL)
+    fatals("Undeclared variable", Text);
+  if (aryptr->stype != S_ARRAY &&// 不是array
+      (aryptr->stype == S_VARIABLE && !ptrtype(aryptr->type)))// 不是指针
+    fatals("Not an array or pointer", Text);
+  
     left = mkastleaf(A_ADDR, aryptr->type, aryptr, 0);
+
+    // Make a leaf node for it that points at the base of
+ // the array, or loads the pointer's value as an rvalue
+    // 也就是说 
+    /*
+    * 
+    *       int *p；
+    *       int ar[21];
+    *       p = ar // 数组地址作为右值
+    */
+    if (aryptr->stype == S_ARRAY)
+        left = mkastleaf(A_ADDR, aryptr->type, aryptr, 0);
+    else {
+        left = mkastleaf(A_IDENT, aryptr->type, aryptr, 0);
+        left->rvalue = 1;
+    }
 
     // Get the '['
     scan(&Token);
