@@ -274,17 +274,19 @@ static struct ASTnode* continue_statement(void)
 *
 *
 */
-static struct ASTnode* switch_statement(void) {
+static struct ASTnode* switch_statement(void) 
+{
     struct ASTnode* left,// switch条件
         * n,  // 
         * c,
+        * body ,// 当前case 下的语句体
         * casetree = NULL,
         * casetail = NULL;
     int inloop = 1,
         casecount = 0;// case的语句数量
     int seendefault = 0;
     int ASTop,
-        casevalue;// case的值
+        casevalue=0;// case的值
 
     // Skip the 'switch' and '('
     scan(&Token);
@@ -305,12 +307,16 @@ static struct ASTnode* switch_statement(void) {
 
     // Now parse the cases
     Switchlevel++;
-    while (inloop) {
-        switch (Token.token) {
+    while (inloop)
+    {
+        switch (Token.token)
+        {
             // Leave the loop when we hit a '}'
-        case T_RBRACE: if (casecount == 0)
+        case T_RBRACE: 
+            if (casecount == 0)
             fatal("No cases in switch");
-            inloop = 0; break;
+            inloop = 0;
+            break;
         case T_CASE:
         case T_DEFAULT:
             // Ensure this isn't after a previous 'default'
@@ -318,11 +324,16 @@ static struct ASTnode* switch_statement(void) {
                 fatal("case or default after existing default");
 
             // Set the AST operation. Scan the case value if required
-            if (Token.token == T_DEFAULT) {
-                ASTop = A_DEFAULT; seendefault = 1; scan(&Token);
+            if (Token.token == T_DEFAULT) 
+            {
+                ASTop = A_DEFAULT; 
+                seendefault = 1; 
+                scan(&Token);
             }
-            else {
-                ASTop = A_CASE; scan(&Token);
+            else
+            {
+                ASTop = A_CASE;
+                scan(&Token);
                 left = binexpr(0);
                 // Ensure the case value is an integer literal
                 if (left->op != A_INTLIT)
@@ -336,17 +347,28 @@ static struct ASTnode* switch_statement(void) {
                         fatal("Duplicate case value");
             }
 
-            // Scan the ':' and get the compound expression
+            // Scan the ':' and increment the casecount
             match(T_COLON, ":");
-            left = single_statement(); casecount++;
+            
+
+            // If the next token is a T_CASE, the existing case will fall
+            // into the next case. Otherwise, parse the case body.
+            if (Token.token == T_CASE)
+                body = NULL;
+            else
+                body = compound_statement(1);
+            casecount++;
 
             // Build a sub-tree with the compound statement as the left child
             // and link it in to the growing A_CASE tree
-            if (casetree == NULL) {
-                casetree = casetail = mkastunary(ASTop, 0, left, NULL, casevalue);
+            // 连接switch语句
+            if (casetree == NULL)
+            {
+                casetree = casetail = mkastunary(ASTop, 0, body, NULL, casevalue);
             }
-            else {
-                casetail->right = mkastunary(ASTop, 0, left, NULL, casevalue);
+            else 
+            {
+                casetail->right = mkastunary(ASTop, 0, body, NULL, casevalue);
                 casetail = casetail->right;
             }
             break;

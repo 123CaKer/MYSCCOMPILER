@@ -26,11 +26,11 @@ static int genIFAST(struct ASTnode* n, int looptoplabel, int loopendlabel)
 
 
     genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);;// Condition and jump to Lfalse
-    genfreeregs();
+    genfreeregs(NOREG);
 
     //  否则真分支 
     genAST(n->mid, NOLABEL, looptoplabel, loopendlabel, n->op);
-    genfreeregs();
+    genfreeregs(NOREG);
 
 
     if (n->right)  /// Lfalse: lend
@@ -43,7 +43,7 @@ static int genIFAST(struct ASTnode* n, int looptoplabel, int loopendlabel)
     if (n->right)
     {
         genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
-        genfreeregs();
+        genfreeregs(NOREG);
         cglabel(Lend);
     }
 
@@ -63,10 +63,10 @@ static int genWHILE(struct ASTnode* n)
 
 
     genAST(n->left, Lend, Lstart, Lend, n->op);
-    genfreeregs();
+    genfreeregs(NOREG);
 
     genAST(n->right, NOLABEL, Lstart, Lend, n->op);
-    genfreeregs();
+    genfreeregs(NOREG);
 
     cgjump(Lstart);
     cglabel(Lend);  // 跳出while
@@ -110,7 +110,7 @@ static int gen_funccall(struct ASTnode* n)
         // Keep the first (highest) number of arguments
         if (numargs == 0)
             numargs = gluetree->a_size;
-        genfreeregs();
+        genfreeregs(NOREG);
         gluetree = gluetree->left;
     }
 
@@ -141,7 +141,7 @@ static int genSWITCH(struct ASTnode* n)
     // Output the code to calculate the switch condition
     reg = genAST(n->left, NOLABEL, NOLABEL, NOLABEL, 0);
     cgjump(Ljumptop);
-    genfreeregs();
+    genfreeregs(reg);
 
     // Walk the right-child linked list to
     // generate the code for each case
@@ -158,9 +158,11 @@ static int genSWITCH(struct ASTnode* n)
         else
             casecount++;
 
-        // Generate the case code. Pass in the end label for the breaks
-        genAST(c->left, NOLABEL, NOLABEL, Lend, 0);
-        genfreeregs();
+        // Generate the case code. Pass in the end label for the breaks.
+     // If case has no body, we will fall into the following body.
+        if (c->left)
+            genAST(c->left, NOLABEL, NOLABEL, Lend, 0);
+        genfreeregs(NOREG);
     }
 
     // Ensure the last case jumps past the switch table
@@ -240,10 +242,10 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
      // registers after each child
         if (n->left != NULL) // 需判断一下是否为空
             genAST(n->left, iflabel, looptoplabel, loopendlabel, n->op);
-        genfreeregs();
+        genfreeregs(NOREG);
         if (n->right != NULL)// 需判断一下是否为空 
             genAST(n->right, iflabel, looptoplabel, loopendlabel, n->op);
-        genfreeregs();
+        genfreeregs(NOREG);
         return (NOREG);
 
 
@@ -280,6 +282,10 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         return (cgor(leftreg, rightreg));
     case A_XOR:
         return (cgxor(leftreg, rightreg));
+    case A_LOGOR:
+        return (cglogor(leftreg, rightreg));
+    case A_LOGAND:
+        return (cglogand(leftreg, rightreg));
     case A_LSHIFT:
         return (cgshl(leftreg, rightreg));
     case A_RSHIFT:

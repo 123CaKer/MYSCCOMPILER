@@ -2,8 +2,6 @@
 #include "data.h"
 #include "decl.h"
 
-// Code generator for x86-64
-// Copyright (c) 2019 Warren Toomey, GPL3
 
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
@@ -143,7 +141,6 @@ void cgpreamble() {
     fprintf(Outfile,
         "# internal switch(expr) routine\n"
         "# %%rsi = switch table, %%rax = expr\n"
-        "# from SubC: http://www.t3x.org/subc/\n"
         "\n"
         "switch:\n"
         "        pushq   %%rsi\n"
@@ -424,6 +421,60 @@ int cglognot(int r) {
     fprintf(Outfile, "\tsete\t%s\n", breglist[r]);
     fprintf(Outfile, "\tmovzbq\t%s, %s\n", breglist[r], reglist[r]);
     return (r);
+}
+
+// Logically OR two registers and return a
+// register with the result, 1 or 0
+int cglogor(int r1, int r2) {
+    // Generate two labels
+    int Ltrue = genlabel();
+    int Lend = genlabel();
+
+    // Test r1 and jump to true label if true
+    fprintf(Outfile, "\ttest\t%s, %s\n", reglist[r1], reglist[r1]);
+    fprintf(Outfile, "\tjne\tL%d\n", Ltrue);
+
+    // Test r2 and jump to true label if true
+    fprintf(Outfile, "\ttest\t%s, %s\n", reglist[r2], reglist[r2]);
+    fprintf(Outfile, "\tjne\tL%d\n", Ltrue);
+
+    // Didn't jump, so result is false
+    fprintf(Outfile, "\tmovq\t$0, %s\n", reglist[r1]);
+    fprintf(Outfile, "\tjmp\tL%d\n", Lend);
+
+    // Someone jumped to the true label, so result is true
+    cglabel(Ltrue);
+    fprintf(Outfile, "\tmovq\t$1, %s\n", reglist[r1]);
+    cglabel(Lend);
+    free_register(r2);
+    return(r1);
+}
+
+// Logically AND two registers and return a
+// register with the result, 1 or 0
+int cglogand(int r1, int r2) {
+    // Generate two labels
+    int Lfalse = genlabel();
+    int Lend = genlabel();
+
+    // Test r1 and jump to false label if not true
+    fprintf(Outfile, "\ttest\t%s, %s\n", reglist[r1], reglist[r1]);
+    fprintf(Outfile, "\tje\tL%d\n", Lfalse);
+
+    // Test r2 and jump to false label if not true
+    fprintf(Outfile, "\ttest\t%s, %s\n", reglist[r2], reglist[r2]);
+    fprintf(Outfile, "\tje\tL%d\n", Lfalse);
+
+    // Didn't jump, so result is true
+    fprintf(Outfile, "\tmovq\t$1, %s\n", reglist[r1]);
+    fprintf(Outfile, "\tjmp\tL%d\n", Lend);
+
+    // Someone jumped to the false label, so result is false
+    cglabel(Lfalse);
+    fprintf(Outfile, "\tmovq\t$0, %s\n", reglist[r1]);
+    cglabel(Lend);
+    free_register(r2);
+    return(r1);
 }
 
 // Convert an integer value to a boolean value. Jump if

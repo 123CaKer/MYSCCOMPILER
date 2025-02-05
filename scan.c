@@ -4,10 +4,10 @@
 
 
 // List of token strings, for debugging purposes
-char* Tstring[] = 
+char *Tstring[] =
 {
   "EOF", "=", "+=", "-=", "*=", "/=",
-  "||", "&&", "|", "^", "&",
+  "?", "||", "&&", "|", "^", "&",
   "==", "!=", ",", ">", "<=", ">=", "<<", ">>",
   "+", "-", "*", "/", "++", "--", "~", "!",
   "void", "char", "int", "long",
@@ -269,7 +269,7 @@ int scan(struct token* t)
     int tokentype;
 
 
-    // If we have a lookahead token, return this token
+    // If we have a lookahead token, return this token н╙ак dangling else
     if (Peektoken.token != 0) 
     {
         t->token = Peektoken.token;
