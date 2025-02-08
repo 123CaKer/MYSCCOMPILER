@@ -10,7 +10,7 @@
 #define NSYMBOLS        1024            // 最大符号表输入数
 #define NOREG	-1		// genAST 的相关函数不适用寄存器 即（-1） 时
 #define NOLABEL	 0		// Use NOLABEL when we have no label to pass to genAST()
-
+int Linestart;		     	// True if at start of a line
 int   Line;     // 当前令牌所在的读取行数
 int	  Putback;  // 需要返回输入流的值 一般是不想要的
 FILE* Infile;   // 文件所读取的指针

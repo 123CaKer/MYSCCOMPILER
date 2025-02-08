@@ -19,6 +19,7 @@ static int OpPrec[] =
 };
 
 
+
 // 递归下降语法
 #if 0
 primary_expression
@@ -28,19 +29,22 @@ primary_expression
     | '(' expression ')'
     ;
 
+primary_expression
+    : IDENTIFIER
+    | CONSTANT
+    | STRING_LITERAL
+    | '(' expression ')'
+    ;
+
 postfix_expression
     : primary_expression
     | postfix_expression '[' expression ']'
-    | postfix_expression '(' expression ')'
+    | postfix_expression '(' ')'
+    | postfix_expression '(' argument_expression_list ')'
+    | postfix_expression '.' IDENTIFIER
+    | postfix_expression '->' IDENTIFIER
     | postfix_expression '++'
     | postfix_expression '--'
-    ;
-
-prefix_expression
-    : postfix_expression
-    | '++' prefix_expression
-    | '--' prefix_expression
-    | prefix_operator prefix_expression
     ;
 
 prefix_operator
@@ -109,7 +113,8 @@ struct ASTnode* expression_list(int endtoken)
 
         // Build an A_GLUE AST node with the previous tree as the left child
         // and the new expression as the right child. Store the expression count.
-        tree = mkastnode(A_GLUE, P_NONE, tree, NULL, child, NULL, exprcount);
+        tree = mkastnode(A_GLUE, P_NONE, NULL, tree, NULL, child, NULL, exprcount);
+
 
         // Stop when we reach the end token
         if (Token.token == endtoken)
@@ -131,6 +136,8 @@ struct ASTnode* expression_list(int endtoken)
    int *a;
     x=&b;
    */
+   // chr 52 之前的prefix
+#if 0
 struct ASTnode* prefix()
 {
     struct ASTnode* tree;
@@ -156,7 +163,7 @@ struct ASTnode* prefix()
         if (tree->op != A_IDENT && tree->op != A_DEREF)//* operator must be followed by an identifier or *
             fatal("* operator must be followed by an identifier or *");
 
-        tree = mkastunary(A_DEREF, value_at(tree->type), tree, NULL, 0);// 间接引用
+        tree = mkastunary(A_DEREF, value_at(tree->type), tree->ctype, tree, NULL, 0);// 间接引用
         break;
 
 
@@ -227,6 +234,114 @@ struct ASTnode* prefix()
     }
     return tree;
 }
+#endif // 0
+struct ASTnode* prefix(void) {
+    struct ASTnode* tree;
+    switch (Token.token) {
+    case T_AMPER:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // Ensure that it's an identifier
+        if (tree->op != A_IDENT)
+            fatal("& operator must be followed by an identifier");
+
+        // Prevent '&' being performed on an array
+        if (tree->sym->stype == S_ARRAY)
+            fatal("& operator cannot be performed on an array");
+
+        // Now change the operator to A_ADDR and the type to
+        // a pointer to the original type
+        tree->op = A_ADDR;
+        tree->type = pointer_to(tree->type);
+        break;
+    case T_STAR:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // For now, ensure it's either another deref or an
+        // identifier
+        if (tree->op != A_IDENT && tree->op != A_DEREF)
+            fatal("* operator must be followed by an identifier or *");
+
+        // Prepend an A_DEREF operation to the tree
+        tree =
+            mkastunary(A_DEREF, value_at(tree->type), tree->ctype, tree, NULL, 0);
+        break;
+    case T_MINUS:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // Prepend a A_NEGATE operation to the tree and
+        // make the child an rvalue. Because chars are unsigned,
+        // also widen this if needed to int so that it's signed
+        tree->rvalue = 1;
+        if (tree->type == P_CHAR)
+            tree->type = P_INT;
+        tree = mkastunary(A_NEGATE, tree->type, tree->ctype, tree, NULL, 0);
+        break;
+    case T_INVERT:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // Prepend a A_INVERT operation to the tree and
+        // make the child an rvalue.
+        tree->rvalue = 1;
+        tree = mkastunary(A_INVERT, tree->type, tree->ctype, tree, NULL, 0);
+        break;
+    case T_LOGNOT:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // Prepend a A_LOGNOT operation to the tree and
+        // make the child an rvalue.
+        tree->rvalue = 1;
+        tree = mkastunary(A_LOGNOT, tree->type, tree->ctype, tree, NULL, 0);
+        break;
+    case T_INC:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // For now, ensure it's an identifier
+        if (tree->op != A_IDENT)
+            fatal("++ operator must be followed by an identifier");
+
+        // Prepend an A_PREINC operation to the tree
+        tree = mkastunary(A_PREINC, tree->type, tree->ctype, tree, NULL, 0);
+        break;
+    case T_DEC:
+        // Get the next token and parse it
+        // recursively as a prefix expression
+        scan(&Token);
+        tree = prefix();
+
+        // For now, ensure it's an identifier
+        if (tree->op != A_IDENT)
+            fatal("-- operator must be followed by an identifier");
+
+        // Prepend an A_PREDEC operation to the tree
+        tree = mkastunary(A_PREDEC, tree->type, tree->ctype, tree, NULL, 0);
+        break;
+    default:
+        tree = postfix();
+    }
+    return (tree);
+}
+
+
+
 
 // 解析后缀表达式并返回一个对应的AST子树
 // Parse a postfix expression and return
@@ -298,6 +413,8 @@ static struct ASTnode* postfix(void)
 }
 #endif // 0  
 
+// chr 51-52 的postfix代码
+#if 0
 static struct ASTnode* postfix(void)
 {
     struct ASTnode* n;
@@ -338,9 +455,9 @@ static struct ASTnode* postfix(void)
         fatals("Unknown variable", Text);
     switch (varptr->stype)
     {
-    case S_VARIABLE: 
+    case S_VARIABLE:
         break;
-    case S_ARRAY: 
+    case S_ARRAY:
         rvalue = 1;//S_ARRAY我们准备不用 array++ 功能 我们使用指针初始化在进行指向数组 同时抛弃&ary
         break;
     default:
@@ -349,7 +466,7 @@ static struct ASTnode* postfix(void)
 
 
 
-    switch (Token.token) 
+    switch (Token.token)
     {
         // Post-increment: skip over the token
     case T_INC:
@@ -381,6 +498,76 @@ static struct ASTnode* postfix(void)
     return (n);
 
 }
+#endif // 0
+
+
+// Parse a postfix expression and return
+// an AST node representing it. The
+// identifier is already in Text.
+static struct ASTnode* postfix(void)
+{
+    struct ASTnode* n;
+
+    // Get the primary expression
+    n = primary();
+
+    // 循环寻找后缀表达式
+    while (1)
+    {
+        switch (Token.token)
+        {
+        case T_LBRACKET:
+            //队列访问
+            n = array_access(n);
+            break;
+
+        case T_DOT:
+            // Access into a struct or union
+            n = member_access(n, 0);
+            break;
+
+        case T_ARROW:
+            // Pointer access into a struct or union
+            n = member_access(n, 1);
+            break;
+
+        case T_INC:
+            // Post-increment: skip over the token
+            if (n->rvalue == 1)
+                fatal("Cannot ++ on rvalue");
+            scan(&Token);
+
+            // Can't do it twice
+            if (n->op == A_POSTINC || n->op == A_POSTDEC)
+                fatal("Cannot ++ and/or -- more than once");
+
+            // and change the AST operation
+            n->op = A_POSTINC;
+            break;
+
+        case T_DEC:
+            // Post-decrement: skip over the token
+            if (n->rvalue == 1)
+                fatal("Cannot -- on rvalue");
+            scan(&Token);
+
+            // Can't do it twice
+            if (n->op == A_POSTINC || n->op == A_POSTDEC)
+                fatal("Cannot ++ and/or -- more than once");
+
+            // and change the AST operation
+            n->op = A_POSTDEC;
+            break;
+
+        default:
+            return (n);
+        }
+    }
+
+    return (NULL);
+}
+
+
 //将 令牌转换为AST对应符号
 int arithop(int tokentype)
 {
@@ -461,6 +648,7 @@ static int rightassoc(int tokentype)
 }
 
 // 生成AST语法树 返回root为+ - * /的ast树  其中p为之前的优先级
+
 struct ASTnode* binexpr(int p)
 {
     struct ASTnode* left, * right;
@@ -483,7 +671,7 @@ struct ASTnode* binexpr(int p)
 
     if (Token.token == T_EOF || Token.token == T_SEMI ||
         Token.token == T_RPAREN || Token.token == T_RBRACKET ||
-        Token.token == T_COMMA || Token.token == T_COLON|| Token.token == T_RBRACE)// 匹配 结束符
+        Token.token == T_COMMA || Token.token == T_COLON || Token.token == T_RBRACE)// 匹配 结束符
 
     {
         /*  AST树
@@ -512,21 +700,25 @@ struct ASTnode* binexpr(int p)
 
 
         ASTop = arithop(tokentype);
-        if (ASTop == A_TERNARY)
+        if (ASTop == A_TERNARY)// 三元运算符
         {
+
             // Ensure we have a ':' token, scan in the expression after it
             match(T_COLON, ":");
             ltemp = binexpr(0);
 
             //  Use the middle expression's type as the return type. XXX We should also
             // consider the third expression's type.
-            return (mkastnode(A_TERNARY, right->type, left, right, ltemp, NULL, 0));
+            return (mkastnode(A_TERNARY, right->type, right->ctype, left, right, ltemp, NULL, 0));
             // left ? right : ltemp
              /*
                       A_TERNARY
                    /      |     \
                  left   right    ltemp
             */
+
+
+
         }
         else if (ASTop == A_ASSIGN)
         {
@@ -534,8 +726,8 @@ struct ASTnode* binexpr(int p)
             right->rvalue = 1;
 
             //匹配
-            right = modify_type(right, left->type, 0);
-            if (left == NULL)
+            right = modify_type(right, left->type, left->ctype, 0);
+            if (right == NULL)
                 fatal("Incompatible expression in assignment");
 
 
@@ -543,6 +735,7 @@ struct ASTnode* binexpr(int p)
             ltemp = left;
             left = right;
             right = ltemp;
+
 
         }
         else
@@ -566,8 +759,8 @@ struct ASTnode* binexpr(int p)
             right->rvalue = 1;
 
 
-            ltemp = modify_type(left, right->type, ASTop);  // 左适配右
-            rtemp = modify_type(right, left->type, ASTop);  // 右适配左
+            ltemp = modify_type(left, right->type, right->ctype, ASTop);  // 左适配右
+            rtemp = modify_type(right, left->type, left->ctype, ASTop);  // 右适配左
             if (ltemp == NULL && rtemp == NULL)
                 fatal("Incompatible types in binary expression");
             if (ltemp != NULL)
@@ -579,8 +772,22 @@ struct ASTnode* binexpr(int p)
 
         }
         // 生成ast节点 保证一致
-        left = mkastnode(arithop(tokentype), left->type, left, NULL, right, NULL, 0);
+        left = mkastnode(arithop(tokentype), left->type, left->ctype, left, NULL, right, NULL, 0);
 
+        // Some operators produce an int result regardless of their operands
+        // 这些运算符产生整型数而跟操作数无关，即在此处理
+        switch (arithop(tokentype))
+        {
+        case A_LOGOR:
+        case A_LOGAND:
+        case A_EQ:
+        case A_NE:
+        case A_LT:
+        case A_GT:
+        case A_LE:
+        case A_GE:
+            left->type = P_INT;
+        }
 
         tokentype = Token.token;  // 更新 token类型
         if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN
@@ -595,6 +802,10 @@ struct ASTnode* binexpr(int p)
     left->rvalue = 1;
     return left; //返回创建
 }
+
+
+
+
 
 static struct ASTnode* funccall()
 {
@@ -618,7 +829,8 @@ static struct ASTnode* funccall()
     // Build the function call AST node. Store the
     // function's return type as this node's type.
     // Also record the function's symbol-id
-    tree = mkastunary(A_FUNCCALL, funcptr->type, tree, funcptr, 0);
+    tree = mkastunary(A_FUNCCALL, funcptr->type, funcptr->ctype, tree, funcptr, 0);
+
 
     // Get the ')'
     rparen();
@@ -627,6 +839,8 @@ static struct ASTnode* funccall()
 
 // Parse the index into an array and
 // return an AST tree for it
+#if 0
+
 static struct ASTnode* array_access(void)
 {
     struct ASTnode* left, * right;
@@ -634,19 +848,19 @@ static struct ASTnode* array_access(void)
 
     // 判断是否是array
    // Check that the identifier has been defined as an array or a pointer.
-  if ((aryptr = findsymbol(Text)) == NULL)
-    fatals("Undeclared variable", Text);
-  if (aryptr->stype != S_ARRAY &&// 不是array
-      (aryptr->stype == S_VARIABLE && !ptrtype(aryptr->type)))// 不是指针
-    fatals("Not an array or pointer", Text);
-  
+    if ((aryptr = findsymbol(Text)) == NULL)
+        fatals("Undeclared variable", Text);
+    if (aryptr->stype != S_ARRAY &&// 不是array
+        (aryptr->stype == S_VARIABLE && !ptrtype(aryptr->type)))// 不是指针
+        fatals("Not an array or pointer", Text);
+
     left = mkastleaf(A_ADDR, aryptr->type, aryptr, 0);
 
     // Make a leaf node for it that points at the base of
  // the array, or loads the pointer's value as an rvalue
     // 也就是说 
     /*
-    * 
+    *
     *       int *p；
     *       int ar[21];
     *       p = ar // 数组地址作为右值
@@ -681,6 +895,46 @@ static struct ASTnode* array_access(void)
     left = mkastunary(A_DEREF, value_at(left->type), left, NULL, 0);
     return (left);
 }
+#endif // 0
+
+// Parse the index into an array and return an AST tree for it
+// 解析数组访问 当前数组指针可能与之前不同数组地址不一定作为右值
+static struct ASTnode* array_access(struct ASTnode* left)
+{
+    struct ASTnode* right;
+
+    // Check that the sub-tree is a pointer
+    if (!ptrtype(left->type))
+        fatal("Not an array or pointer");
+
+    // Get the '['
+    scan(&Token);
+
+    // Parse the following expression
+    right = binexpr(0);
+
+    // Get the ']'
+    match(T_RBRACKET, "]");
+
+    // Ensure that this is of int type
+    if (!inttype(right->type))
+        fatal("Array index is not of integer type");
+
+    // Make the left tree an rvalue
+    left->rvalue = 1;
+
+    // Scale the index by the size of the element's type
+    right = modify_type(right, left->type, left->ctype, A_ADD);
+
+    // Return an AST tree where the array's base has the offset added to it,
+    // and dereference the element. Still an lvalue at this point.
+    left =
+        mkastnode(A_ADD, left->type, left->ctype, left, NULL, right, NULL, 0);
+    left =
+        mkastunary(A_DEREF, value_at(left->type), left->ctype, left, NULL, 0);
+    return (left);
+}
+
 
 
 
@@ -696,6 +950,7 @@ static struct ASTnode* array_access(void)
     从下往上生成AST
     */
 
+#if 0
 struct ASTnode* member_access(int withpointer)
 {
     struct ASTnode* left, * right;
@@ -749,14 +1004,125 @@ struct ASTnode* member_access(int withpointer)
     return (left);
 }
 
+#endif // 0
+
+// Parse the member reference of a struct or union
+// and return an AST tree for it. If withpointer is true,
+// the access is through a pointer to the member.
+struct ASTnode* member_access(struct ASTnode* left, int withpointer)
+{
+    struct ASTnode* right;
+    struct symtable* typeptr;
+    struct symtable* m;
+
+    // Check that the left AST tree is a pointer to struct or union
+    if (withpointer && left->type != pointer_to(P_STRUCT)
+        && left->type != pointer_to(P_UNION))
+        fatal("Expression is not a pointer to a struct/union");
+
+    // Or, check that the left AST tree is a struct or union.
+    // If so, change it from an A_IDENT to an A_ADDR so that
+    // we get the base address, not the value at this address.
+    if (!withpointer)
+    {
+        if (left->type == P_STRUCT || left->type == P_UNION)
+            left->op = A_ADDR;// 进行地址访问 。或者 -》
+        else
+            fatal("Expression is not a struct/union");
+    }
+
+    // Get the details of the composite type
+    typeptr = left->ctype;
+
+    // Skip the '.' or '->' token and get the member's name
+    scan(&Token);
+    ident();
+
+    // Find the matching member's name in the type
+    // Die if we can't find it
+    for (m = typeptr->member; m != NULL; m = m->next)
+        if (!strcmp(m->name, Text))
+            break;
+    if (m == NULL)
+        fatals("No member found in struct/union: ", Text);
+
+    // Make the left tree an rvalue
+    left->rvalue = 1;
+
+    // Build an A_INTLIT node with the offset
+    right = mkastleaf(A_INTLIT, P_INT, NULL, NULL, m->st_posn);
+
+    // Add the member's offset to the base of the struct/union
+    // and dereference it. Still an lvalue at this point
+    left =
+        mkastnode(A_ADD, pointer_to(m->type), m->ctype, left, NULL, right, NULL,
+            0);
+    left = mkastunary(A_DEREF, m->type, m->ctype, left, NULL, 0);
+    return (left);
+}
 
 
+
+// Parse a parenthesised expression and
+// return an AST node representing it
+// 解析带括号的表达式
+static struct ASTnode* paren_expression(void)
+{
+    struct ASTnode* n;
+    int type = 0;
+    struct symtable* ctype = NULL;
+
+    // Beginning of a parenthesised expression, skip the '('.
+    scan(&Token);
+
+    // If the token after is a type identifier, this is a cast expression
+    switch (Token.token)
+    {
+    case T_IDENT:
+        // We have to see if the identifier matches a typedef.
+        // If not, treat it as an expression.
+        if (findtypedef(Text) == NULL)
+        {
+            n = binexpr(0);// ()内没有typedef' 说明是一个表达式 即使不是也当作表达式
+                                // 还有一种情况就是当作是变量typedef 时候 就会binexpr
+            break;
+        }
+    case T_VOID:
+    case T_CHAR:
+    case T_INT:
+    case T_LONG:
+    case T_STRUCT:
+    case T_UNION:
+    case T_ENUM:
+        // Get the type inside the parentheses // 当前为强制类型转换 比如 （int）a
+        type = parse_cast(&ctype);
+
+        // Skip the closing ')' and then parse the following expression
+        //（int    ）rparen() var
+        rparen();
+
+    default:
+        n = binexpr(0);		// 默认是一个计算表达式
+    }
+
+    if (type == 0)// 如果不是强制转换，此处是匹配最上面的expr 即当前为一个表达式
+        rparen();  /*
+                       （x*1     ）rparen()
+                   */
+    else
+        // Otherwise, make a unary AST node for the cast
+        n = mkastunary(A_CAST, type, n, NULL, 0);
+    return (n);
+}
+
+// 第52章节之前的primary
+#if 0
 struct ASTnode* primary()
 {
     struct ASTnode* n = NULL;
     int id;
     int type = 0;// 转换的类型
-    int size = 0,class;//sizeof（）
+    int size = 0, class;//sizeof（）
     struct symtable* ctype;
     // 将token类型为T_INTLIT 变为 AST叶子节点 否则异常
     switch (Token.token)
@@ -776,22 +1142,22 @@ struct ASTnode* primary()
         // Get the type's size
         size = typesize(type, ctype);
         rparen();
-       
-        return (mkastleaf(A_INTLIT, P_INT, NULL, size));
+
+        return (mkastleaf(A_INTLIT, P_INT, NULL, NULL, size));
 
     case T_STRLIT:
         // For a STRLIT token, generate the assembly for it.
         // Then make a leaf AST node for it. id is the string's label.
         id = genglobstr(Text); // 生成 汇编
-        n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, id); // 生成叶子节点
+        n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, NULL, id); // 生成叶子节点
         break;
 
     case T_INTLIT: //数字值
 
         if ((Token.intvalue) >= 0 && (Token.intvalue < 256))//char型
-            n = mkastleaf(A_INTLIT, P_CHAR, NULL, Token.intvalue);
+            n = mkastleaf(A_INTLIT, P_CHAR, NULL, NULL, Token.intvalue);
         else                                                // int型
-            n = mkastleaf(A_INTLIT, P_INT, NULL, Token.intvalue);
+            n = mkastleaf(A_INTLIT, P_INT, NULL, NULL, Token.intvalue);
         break;
 
     case T_IDENT:
@@ -805,12 +1171,12 @@ struct ASTnode* primary()
 
 
         // If the token after is a type identifier, this is a cast expression
-        switch (Token.token) 
+        switch (Token.token)
         {
         case T_IDENT:
             // We have to see if the identifier matches a typedef.
             // If not, treat it as an expression.
-            if (findtypedef(Text) == NULL) 
+            if (findtypedef(Text) == NULL)
             {
                 n = binexpr(0); // ()内没有typedef' 说明是一个表达式 即使不是也当作表达式
                                 // 还有一种情况就是当作是变量typedef 时候 就会binexpr
@@ -852,3 +1218,97 @@ struct ASTnode* primary()
     scan(&Token);//扫描下一个令牌并返回叶子节点
     return n;
 }
+#endif // 0
+
+struct ASTnode* primary(void)
+{
+    struct ASTnode* n = NULL;
+    struct symtable* enumptr;
+    struct symtable* varptr;
+    int id;
+    int type = 0;
+    int size, class;
+    struct symtable* ctype;
+
+    switch (Token.token)
+    {
+    case T_STATIC:
+    case T_EXTERN:
+        fatal("Compiler doesn't support static or extern local declarations");
+    case T_SIZEOF:
+        // Skip the T_SIZEOF and ensure we have a left parenthesis
+        scan(&Token);
+        if (Token.token != T_LPAREN)
+            fatal("Left parenthesis expected after sizeof");
+        scan(&Token);
+
+        // Get the type inside the parentheses
+        type = parse_stars(parse_type(&ctype, &class));
+
+        // Get the type's size
+        size = typesize(type, ctype);
+        rparen();
+
+        // Make a leaf node int literal with the size
+        return (mkastleaf(A_INTLIT, P_INT, NULL, NULL, size));
+
+    case T_INTLIT:
+        // For an INTLIT token, make a leaf AST node for it.
+        // Make it a P_CHAR if it's within the P_CHAR range
+        if (Token.intvalue >= 0 && Token.intvalue < 256)
+            n = mkastleaf(A_INTLIT, P_CHAR, NULL, NULL, Token.intvalue);
+        else
+            n = mkastleaf(A_INTLIT, P_INT, NULL, NULL, Token.intvalue);
+        break;
+
+    case T_STRLIT:
+        // For a STRLIT token, generate the assembly for it.
+        // Then make a leaf AST node for it. id is the string's label.
+        id = genglobstr(Text);
+        n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, NULL, id);
+        break;
+
+    case T_IDENT:
+        // If the identifier matches an enum value,
+        // return an A_INTLIT node
+        if ((enumptr = findenumval(Text)) != NULL) // 处理枚举
+        {
+            n = mkastleaf(A_INTLIT, P_INT, NULL, NULL, enumptr->st_posn);
+            break;
+        }
+        // See if this identifier exists as a symbol. For arrays, set rvalue to 1.
+        if ((varptr = findsymbol(Text)) == NULL)
+            fatals("Unknown variable or function", Text);
+        switch (varptr->stype)
+        {
+        case S_VARIABLE:
+            n = mkastleaf(A_IDENT, varptr->type, varptr->ctype, varptr, 0);
+            break;
+        case S_ARRAY:
+            n = mkastleaf(A_ADDR, varptr->type, varptr->ctype, varptr, 0);
+            n->rvalue = 1;
+            break;
+        case S_FUNCTION:
+            // Function call, see if the next token is a left parenthesis
+            scan(&Token);
+            if (Token.token != T_LPAREN)
+                fatals("Function name used without parentheses", Text);
+            return (funccall());
+        default:
+            fatals("Identifier not a scalar or array variable", Text);
+        }
+        break;
+
+    case T_LPAREN:
+        return (paren_expression());
+
+    default:
+        fatals("Expecting a primary expression, got token", Token.tokstr);
+    }
+
+    // Scan in the next token and return the leaf node
+    scan(&Token);
+    return (n);
+}
+
+

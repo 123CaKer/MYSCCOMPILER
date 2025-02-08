@@ -121,7 +121,7 @@ struct ASTnode* if_statement()
     lparen(); // 匹配 (
     condAST = binexpr(0); // 生成条件AST
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST->ctype, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
     // 其中x为 表达式
     // 判断部分不涉及类型转换
 
@@ -139,7 +139,7 @@ struct ASTnode* if_statement()
     }
 
     // 生成AST节点
-    return mkastnode(A_IF, P_NONE, condAST, trueAST, falseAST, NULL, 0);
+    return (mkastnode(A_IF, P_NONE, NULL, condAST, trueAST, falseAST, NULL, 0));
 }
 
 
@@ -154,7 +154,7 @@ struct ASTnode* while_statement()
 
     condAST = binexpr(0);
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST->ctype, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
     // 其中x为 表达式
 
     // 判断部分不涉及类型转换
@@ -163,7 +163,7 @@ struct ASTnode* while_statement()
     Looplevel++;// 循环等级+1
     bodyAST = single_statement();// 单个句子里头套复合句 具体详见single_stmt
     Looplevel--;
-    ASTn = mkastnode(A_WHILE, P_NONE, condAST, NULL, bodyAST, NULL, 0);
+    ASTn = mkastnode(A_WHILE, P_NONE, NULL, condAST, NULL, bodyAST, NULL, 0);
     return ASTn;
 
 }
@@ -186,7 +186,7 @@ struct ASTnode* for_statement()
 
     condAST = binexpr(0);
     if (condAST->op < A_EQ || condAST->op > A_GE)
-        condAST = mkastunary(A_TOBOOL, condAST->type, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
+        condAST = mkastunary(A_TOBOOL, condAST->type, condAST->ctype, condAST, NULL, 0);// 此处是保证了 if(x) {stmt}
   // 其中x为 表达式
 
     // 判断部分不涉及类型转换
@@ -198,9 +198,9 @@ struct ASTnode* for_statement()
     bodyAST = single_statement();
     Looplevel--;
 
-    tree = mkastnode(A_GLUE, P_NONE, bodyAST, NULL, postopAST, NULL, 0);;
-    tree = mkastnode(A_WHILE, P_NONE, condAST, NULL, tree, NULL, 0);
-    return mkastnode(A_GLUE, P_NONE, preopAST, NULL, tree, NULL, 0);
+    tree = mkastnode(A_GLUE, P_NONE, NULL, bodyAST, NULL, postopAST, NULL, 0);
+    tree = mkastnode(A_WHILE, P_NONE, NULL, condAST, NULL, tree, NULL, 0);
+    return mkastnode(A_GLUE, P_NONE, NULL, preopAST, NULL, tree, NULL, 0);
 }
 
 static struct ASTnode* return_statement()
@@ -228,7 +228,7 @@ static struct ASTnode* return_statement()
 
     semi(); //在此处匹配；
     // 最终生成A_RETURN
-    tree = mkastunary(A_RETURN, P_NONE, tree, NULL, 0);
+    tree = mkastunary(A_RETURN, P_NONE, NULL, tree, NULL, 0);
     return tree;
 }
 
@@ -242,7 +242,7 @@ static struct ASTnode* break_statement(void)
         fatal("no loop or switch to break out from");
     scan(&Token);
     semi(); //在此处匹配；
-    return (mkastleaf(A_BREAK, 0, NULL, 0));
+    return (mkastleaf(A_BREAK, P_NONE, NULL, NULL, 0));
 
 }
 
@@ -256,7 +256,7 @@ static struct ASTnode* continue_statement(void)
         fatal("no loop to continue to");
     scan(&Token);
     semi(); //在此处匹配；
-    return (mkastleaf(A_CONTINUE, 0, NULL, 0));
+    return (mkastleaf(A_CONTINUE, P_NONE, NULL, NULL, 0));
 }
 
 //生成switch AST
@@ -274,19 +274,19 @@ static struct ASTnode* continue_statement(void)
 *
 *
 */
-static struct ASTnode* switch_statement(void) 
+static struct ASTnode* switch_statement(void)
 {
     struct ASTnode* left,// switch条件
         * n,  // 
         * c,
-        * body ,// 当前case 下的语句体
+        * body,// 当前case 下的语句体
         * casetree = NULL,
         * casetail = NULL;
     int inloop = 1,
         casecount = 0;// case的语句数量
     int seendefault = 0;
     int ASTop,
-        casevalue=0;// case的值
+        casevalue = 0;// case的值
 
     // Skip the 'switch' and '('
     scan(&Token);
@@ -303,7 +303,7 @@ static struct ASTnode* switch_statement(void)
 
     // Build an A_SWITCH subtree with the expression as
     // the child
-    n = mkastunary(A_SWITCH, 0, left, NULL, 0);
+    n = mkastunary(A_SWITCH, P_NONE, NULL, left, NULL, 0);
 
     // Now parse the cases
     Switchlevel++;
@@ -312,9 +312,9 @@ static struct ASTnode* switch_statement(void)
         switch (Token.token)
         {
             // Leave the loop when we hit a '}'
-        case T_RBRACE: 
+        case T_RBRACE:
             if (casecount == 0)
-            fatal("No cases in switch");
+                fatal("No cases in switch");
             inloop = 0;
             break;
         case T_CASE:
@@ -324,10 +324,10 @@ static struct ASTnode* switch_statement(void)
                 fatal("case or default after existing default");
 
             // Set the AST operation. Scan the case value if required
-            if (Token.token == T_DEFAULT) 
+            if (Token.token == T_DEFAULT)
             {
-                ASTop = A_DEFAULT; 
-                seendefault = 1; 
+                ASTop = A_DEFAULT;
+                seendefault = 1;
                 scan(&Token);
             }
             else
@@ -349,7 +349,7 @@ static struct ASTnode* switch_statement(void)
 
             // Scan the ':' and increment the casecount
             match(T_COLON, ":");
-            
+
 
             // If the next token is a T_CASE, the existing case will fall
             // into the next case. Otherwise, parse the case body.
@@ -364,11 +364,11 @@ static struct ASTnode* switch_statement(void)
             // 连接switch语句
             if (casetree == NULL)
             {
-                casetree = casetail = mkastunary(ASTop, 0, body, NULL, casevalue);
+                casetree = casetail = mkastunary(ASTop, P_NONE, NULL, body, NULL, casevalue);
             }
-            else 
+            else
             {
-                casetail->right = mkastunary(ASTop, 0, body, NULL, casevalue);
+                casetail->right = mkastunary(ASTop, P_NONE, NULL, body, NULL, casevalue);
                 casetail = casetail->right;
             }
             break;
@@ -476,11 +476,12 @@ struct ASTnode* compound_statement(int inswitch)
         // For each new tree, either save it in left
         // if left is empty, or glue the left and the
         // new tree together
-        if (tree != NULL) {
+        if (tree != NULL)
+        {
             if (left == NULL)
                 left = tree;
             else
-                left = mkastnode(A_GLUE, P_NONE, left, NULL, tree, NULL, 0);
+                left = mkastnode(A_GLUE, P_NONE, NULL, left, NULL, tree, NULL, 0);
         }
 
         // Leave if we've hit the end token

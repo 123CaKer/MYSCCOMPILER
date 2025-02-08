@@ -79,6 +79,7 @@ int param_declaration_list(struct symtable* oldfuncsym,struct symtable* newfuncs
 //expr.c
 //将 表达式符号转换为AST对应符号
 int arithop(int tokentype);
+struct ASTnode* postfix(void);
 // 获取运算符优先级
 static int op_precedence(int tokentype);
 // 生成语法树 返回root为+ - * /的ast树  其中p为之前的优先级

@@ -98,6 +98,7 @@ void doer(char* p , char* q) // p为输入文件，q为输出文件
 #endif
 
     Line = 1;			// reset scanner
+    Linestart = 1;
     Putback = '\n';
     clear_symtable();		// 清空符号表
 

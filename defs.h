@@ -124,6 +124,7 @@ struct ASTnode
 	struct ASTnode* left;
 	struct ASTnode* mid;
 	struct ASTnode* right;
+	struct symtable* ctype;	// If struct/union, ptr to that type 为了多级指针使用 即 a->next->next
 	int rvalue;                   // 是否为右值 1 为右边
 	struct symtable* sym;		// For many AST nodes, the pointer to
 	#define a_intvalue a_size	// For A_INTLIT, a_intvalue 整形数字

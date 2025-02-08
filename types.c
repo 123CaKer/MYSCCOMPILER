@@ -123,7 +123,7 @@ int ptrtype(int type)
 }
 
 //当前的tree适配rtype op为当前tree操作符
-struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
+struct ASTnode* modify_type(struct ASTnode* tree, int rtype, struct symtable* rctype, int op)
 {
     int ltype;
     int lsize, rsize;
@@ -147,16 +147,15 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
             return (tree);
 
         // Get the sizes for each type
-        lsize = genprimsize(ltype);
-        rsize = genprimsize(rtype);
-
+        lsize = typesize(ltype, NULL);
+        rsize = typesize(rtype, NULL);
         // Tree's size is too big
         if (lsize > rsize)
             return (NULL);
 
         // Widen to the right
         if (rsize > lsize)
-            return (mkastunary(A_WIDEN, rtype, tree, NULL, 0));
+            return (mkastunary(A_WIDEN, rtype, NULL, tree, NULL, 0));
     }
 
     // For pointers （此处可用于强制类型转换）
@@ -183,7 +182,7 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, int op)
         {
             rsize = genprimsize(value_at(rtype));
             if (rsize > 1)
-                return (mkastunary(A_SCALE, rtype, tree, NULL, rsize));
+                return (mkastunary(A_SCALE, rtype, rctype, tree, NULL, rsize));
             else
                 return (tree);		// Size 1, no need to scale
         }

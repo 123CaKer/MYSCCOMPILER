@@ -5,14 +5,14 @@
 #include<stdlib.h>
 // 创建AST节点值
 
-struct ASTnode* mkastnode(int op, int type, struct ASTnode* left,
+struct ASTnode* mkastnode(int op, int type, struct symtable* ctype, struct ASTnode* left,
     struct ASTnode* mid, struct ASTnode* right, struct symtable* sym, int intvalue)
 {
     struct ASTnode* n;
     n = (struct ASTnode*)malloc(sizeof(struct ASTnode));
     if (n == NULL)
         fatal("Unable to malloc in mkastnode()");
-
+    n->ctype = ctype;
     n->op = op;
     n->left = left;
     n->mid = mid;
@@ -31,16 +31,16 @@ struct ASTnode* mkastnode(int op, int type, struct ASTnode* left,
 
 
 //生成AST叶子节点
-struct ASTnode* mkastleaf(int op, int type, struct symtable* sym, int intvalue)
+struct ASTnode* mkastleaf(int op, int type, int ctype, struct symtable* sym, int intvalue)
 {
-    return mkastnode(op, type, NULL, NULL, NULL, sym, intvalue);
+    return (mkastnode(op, type, ctype, NULL, NULL, NULL, sym, intvalue));
 }
 
 // 生成度为1AST 
-struct ASTnode* mkastunary(int op, int type, struct ASTnode* left, struct symtable* sym, int intvalue)
+struct ASTnode* mkastunary(int op, int type, int ctype, struct ASTnode* left, struct symtable* sym, int intvalue)
 {
 
-    return mkastnode(op, type, left, NULL, NULL, sym, intvalue);
+    return (mkastnode(op, type, ctype, left, NULL, NULL, sym, intvalue));
 }
 
 // AST节点释放
@@ -70,12 +70,12 @@ static int gendumplabel(void) {
 // traversal of the tree that genAST() follows
 void dumpAST(struct ASTnode* n, int label, int level) {
     int Lfalse, Lstart, Lend;
-
+    int i;
 
     switch (n->op) {
     case A_IF:
         Lfalse = gendumplabel();
-        for (int i = 0; i < level; i++)
+        for (i = 0; i < level; i++)
             fprintf(stdout, " ");
         fprintf(stdout, "A_IF");
         if (n->right) {

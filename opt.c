@@ -17,7 +17,7 @@ static struct ASTnode* fold2(struct ASTnode* n)
     // Perform some of the binary operations.
     // For any AST op we can't do, return
     // the original tree.
-    switch (n->op) 
+    switch (n->op)
     {
     case A_ADD:
         val = leftval + rightval;
@@ -38,14 +38,14 @@ static struct ASTnode* fold2(struct ASTnode* n)
         return (n);
     }
 
-    
-    return (mkastleaf(A_INTLIT, n->type, NULL, val));// 生成值为val的节点
+
+    return (mkastleaf(A_INTLIT, n->type, NULL, NULL, val));// 生成值为val的节点
 }
 
 // Fold an AST tree with a unary operator
 // and one INTLIT children. Return either 
 // the original tree or a new leaf node.
-static struct ASTnode* fold1(struct ASTnode* n) 
+static struct ASTnode* fold1(struct ASTnode* n)
 {
     int val;
 
@@ -53,7 +53,7 @@ static struct ASTnode* fold1(struct ASTnode* n)
     // operation if recognised.
     // Return the new leaf node.
     val = n->left->a_intvalue;
-    switch (n->op) 
+    switch (n->op)
     {
     case A_WIDEN:
         break;
@@ -68,13 +68,13 @@ static struct ASTnode* fold1(struct ASTnode* n)
     }
 
     // Return a leaf node with the new value
-    return (mkastleaf(A_INTLIT, n->type, NULL, val));
+    return (mkastleaf(A_INTLIT, n->type, NULL, NULL, val));
 }
 
 // Attempt to do constant folding on
 // the AST tree with the root node n
 // 依次递归 详见笔记chr 44
-static struct ASTnode* fold(struct ASTnode* n) 
+static struct ASTnode* fold(struct ASTnode* n)
 {
 
     if (n == NULL)
@@ -84,7 +84,7 @@ static struct ASTnode* fold(struct ASTnode* n)
     n->right = fold(n->right);
 
     // If both children are A_INTLITs, do a fold2()
-    if (n->left && n->left->op == A_INTLIT) 
+    if (n->left && n->left->op == A_INTLIT)
     {
         if (n->right && n->right->op == A_INTLIT)
             n = fold2(n);
@@ -98,7 +98,7 @@ static struct ASTnode* fold(struct ASTnode* n)
 
 // Optimise an AST tree by
 // constant folding in all sub-trees
-struct ASTnode* optimise(struct ASTnode* n) 
+struct ASTnode* optimise(struct ASTnode* n)
 {
     n = fold(n);// 当前变量折叠
     return (n);

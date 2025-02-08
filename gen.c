@@ -145,7 +145,8 @@ static int genSWITCH(struct ASTnode* n)
 
     // Walk the right-child linked list to
     // generate the code for each case
-    for (i = 0, c = n->right; c != NULL; i++, c = c->right) {
+    for (i = 0, c = n->right; c != NULL; i++, c = c->right)
+    {
 
         // Get a label for this case. Store it
         // and the case value in the arrays.
@@ -220,7 +221,7 @@ static int gen_ternary(struct ASTnode* n)
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
 {
-    int  leftreg;
+    int  leftreg=0;
     //  int  midreg;
     int  rightreg;
 
@@ -331,7 +332,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // If the parent AST node is an A_IF or A_WHILE, generate
         // a compare followed by a jump. Otherwise, compare registers
         // and set one to 1 or 0 based on the comparison.
-        if (parentASTop == A_IF || parentASTop == A_WHILE)
+        if (parentASTop == A_IF || parentASTop == A_WHILE|| parentASTop == A_TERNARY)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel));
         else
             return (cgcompare_and_set(n->op, leftreg, rightreg));

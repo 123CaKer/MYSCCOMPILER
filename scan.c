@@ -4,7 +4,7 @@
 
 
 // List of token strings, for debugging purposes
-char *Tstring[] =
+char* Tstring[] =
 {
   "EOF", "=", "+=", "-=", "*=", "/=",
   "?", "||", "&&", "|", "^", "&",
@@ -96,13 +96,13 @@ static int skip(void)
 
 
 //读取16进制常数
- int hexchar(void)
+int hexchar(void)
 {
     int c, h, n = 0,
         f = 0;//f为1时为16进制数字
 
     // Loop getting characters
-    while (isxdigit(c = next())) 
+    while (isxdigit(c = next()))
     {
         // Convert from char to int value
         h = chrpos("0123456789abcdef", tolower(c));
@@ -123,9 +123,9 @@ static int skip(void)
 
 // Return the next character from a character
 // or string literal
- int scanch(void)   // 主要用于识别 转义字符
+int scanch(void)   // 主要用于识别 转义字符
 {
-     int i, c, c2;
+    int i, c, c2;
 
     // Get the next input character and interpret
     // metacharacters that start with a backslash
@@ -154,11 +154,11 @@ static int skip(void)
             return '"';// 双引号
         case '\'':
             return '\'';
-    // Deal with octal constants by reading in
-    // characters until we hit a non-octal digit.
-    // Build up the octal value in c2 and count
-    // # digits in i. Permit only 3 octal digits.
-            // 下面处理八进制值
+            // Deal with octal constants by reading in
+            // characters until we hit a non-octal digit.
+            // Build up the octal value in c2 and count
+            // # digits in i. Permit only 3 octal digits.
+                    // 下面处理八进制值
         case '0':
         case '1':
         case '2':
@@ -167,7 +167,7 @@ static int skip(void)
         case '5':
         case '6':
         case '7':
-            for (i = c2 = 0; isdigit(c) && c < '8'; c = next()) 
+            for (i = c2 = 0; isdigit(c) && c < '8'; c = next())
             {
                 if (++i > 3)// subc8进制仅能4位数
                     break;
@@ -190,9 +190,9 @@ static int skip(void)
 static int scanint(int c)
 // 从输入文件中扫描并返回整形数据 
 {
-    int k, val = 0,radix = 10;// radix是进制
+    int k, val = 0, radix = 10;// radix是进制
 
-  
+
     if (c == '0') //如果第一个字符是0
     {
         // 下一个是x
@@ -270,7 +270,7 @@ int scan(struct token* t)
 
 
     // If we have a lookahead token, return this token 为了 dangling else
-    if (Peektoken.token != 0) 
+    if (Peektoken.token != 0)
     {
         t->token = Peektoken.token;
         t->tokstr = Peektoken.tokstr;
@@ -315,7 +315,7 @@ int scan(struct token* t)
         if ((c = next()) == '-')  // --
         {
             t->token = T_DEC;
-        } 
+        }
         else if (c == '>')  // ->
         {
             t->token = T_ARROW;
@@ -329,7 +329,7 @@ int scan(struct token* t)
             t->intvalue = -scanint(c);
             t->token = T_INTLIT;
         }
-        else 
+        else
         {
             putback(c);
             t->token = T_MINUS;
@@ -339,11 +339,11 @@ int scan(struct token* t)
         t->token = T_DOT;// .成员
         break;
     case '*':
-        if ((c = next()) == '=') 
+        if ((c = next()) == '=')
         {
             t->token = T_ASSTAR; // *=
         }
-        else 
+        else
         {
             putback(c);
             t->token = T_STAR;
