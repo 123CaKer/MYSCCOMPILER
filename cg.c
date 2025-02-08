@@ -2,6 +2,8 @@
 #include "data.h"
 #include "decl.h"
 
+// Code generator for x86-64
+// Copyright (c) 2019 Warren Toomey, GPL3
 
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
@@ -116,7 +118,9 @@ void freeall_registers(int keepreg) {
 // Allocate a free register. Return the number of
 // the register. Die if no available registers.
 int alloc_register(void) {
-    for (int i = 0; i < NUMFREEREGS; i++) {
+    int i;
+
+    for (i = 0; i < NUMFREEREGS; i++) {
         if (freereg[i]) {
             freereg[i] = 0;
             return (i);
@@ -141,6 +145,7 @@ void cgpreamble() {
     fprintf(Outfile,
         "# internal switch(expr) routine\n"
         "# %%rsi = switch table, %%rax = expr\n"
+        "# from SubC: http://www.t3x.org/subc/\n"
         "\n"
         "switch:\n"
         "        pushq   %%rsi\n"
@@ -304,7 +309,8 @@ int cgloadlocal(struct symtable* sym, int op) {
                 fprintf(Outfile, "\tincb\t%d(%%rbp)\n", sym->st_posn);
             if (op == A_PREDEC)
                 fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", sym->st_posn);
-            fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
+            fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", sym->st_posn,
+                reglist[r]);
             if (op == A_POSTINC)
                 fprintf(Outfile, "\tincb\t%d(%%rbp)\n", sym->st_posn);
             if (op == A_POSTDEC)
@@ -315,7 +321,8 @@ int cgloadlocal(struct symtable* sym, int op) {
                 fprintf(Outfile, "\tincl\t%d(%%rbp)\n", sym->st_posn);
             if (op == A_PREDEC)
                 fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", sym->st_posn);
-            fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
+            fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", sym->st_posn,
+                reglist[r]);
             if (op == A_POSTINC)
                 fprintf(Outfile, "\tincl\t%d(%%rbp)\n", sym->st_posn);
             if (op == A_POSTDEC)
@@ -447,7 +454,7 @@ int cglogor(int r1, int r2) {
     fprintf(Outfile, "\tmovq\t$1, %s\n", reglist[r1]);
     cglabel(Lend);
     free_register(r2);
-    return(r1);
+    return (r1);
 }
 
 // Logically AND two registers and return a
@@ -474,7 +481,7 @@ int cglogand(int r1, int r2) {
     fprintf(Outfile, "\tmovq\t$0, %s\n", reglist[r1]);
     cglabel(Lend);
     free_register(r2);
-    return(r1);
+    return (r1);
 }
 
 // Convert an integer value to a boolean value. Jump if
@@ -561,10 +568,12 @@ int cgstorlocal(int r, struct symtable* sym) {
     else
         switch (sym->type) {
         case P_CHAR:
-            fprintf(Outfile, "\tmovb\t%s, %d(%%rbp)\n", breglist[r], sym->st_posn);
+            fprintf(Outfile, "\tmovb\t%s, %d(%%rbp)\n", breglist[r],
+                sym->st_posn);
             break;
         case P_INT:
-            fprintf(Outfile, "\tmovl\t%s, %d(%%rbp)\n", dreglist[r], sym->st_posn);
+            fprintf(Outfile, "\tmovl\t%s, %d(%%rbp)\n", dreglist[r],
+                sym->st_posn);
             break;
         default:
             fatald("Bad type in cgstorlocal:", sym->type);
@@ -626,19 +635,24 @@ void cgglobsym(struct symtable* node) {
                 fprintf(Outfile, "\t.quad\t%d\n", initvalue);
             break;
         default:
-            for (int i = 0; i < size; i++)
+            for (i = 0; i < size; i++)
                 fprintf(Outfile, "\t.byte\t0\n");
         }
     }
 }
 
 // Generate a global string and its start label
-void cgglobstr(int l, char* strvalue) {
+// Don't output the label if append is true.
+void cgglobstr(int l, char* strvalue, int append) {
     char* cptr;
-    cglabel(l);
+    if (!append)
+        cglabel(l);
     for (cptr = strvalue; *cptr; cptr++) {
         fprintf(Outfile, "\t.byte\t%d\n", *cptr);
     }
+}
+
+void cgglobstrend(void) {
     fprintf(Outfile, "\t.byte\t0\n");
 }
 
@@ -699,27 +713,33 @@ int cgwiden(int r, int oldtype, int newtype) {
 // Generate code to return a value from a function
 void cgreturn(int reg, struct symtable* sym) {
 
-    // Deal with pointers here as we can't put them in
-    // the switch statement
-    if (ptrtype(sym->type))
-        fprintf(Outfile, "\tmovq\t%s, %%rax\n", reglist[reg]);
-    else {
-        // Generate code depending on the function's type
-        switch (sym->type) {
-        case P_CHAR:
-            fprintf(Outfile, "\tmovzbl\t%s, %%eax\n", breglist[reg]);
-            break;
-        case P_INT:
-            fprintf(Outfile, "\tmovl\t%s, %%eax\n", dreglist[reg]);
-            break;
-        case P_LONG:
+    // Only return a value if we have a value to return
+    if (reg != NOREG) {
+        // Deal with pointers here as we can't put them in
+        // the switch statement
+        if (ptrtype(sym->type))
             fprintf(Outfile, "\tmovq\t%s, %%rax\n", reglist[reg]);
-            break;
-        default:
-            fatald("Bad function type in cgreturn:", sym->type);
+        else {
+            // Generate code depending on the function's type
+            switch (sym->type) {
+            case P_CHAR:
+                fprintf(Outfile, "\tmovzbl\t%s, %%eax\n", breglist[reg]);
+                break;
+            case P_INT:
+                fprintf(Outfile, "\tmovl\t%s, %%eax\n", dreglist[reg]);
+                break;
+            case P_LONG:
+                fprintf(Outfile, "\tmovq\t%s, %%rax\n", reglist[reg]);
+                break;
+            default:
+                fatald("Bad function type in cgreturn:", sym->type);
+            }
         }
     }
-    cgjump(sym->st_endlabel);
+    
+        cgjump(sym->st_endlabel);
+    
+    
 }
 
 

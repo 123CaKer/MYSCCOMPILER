@@ -221,9 +221,14 @@ static int gen_ternary(struct ASTnode* n)
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
 {
-    int  leftreg=0;
+    int  leftreg= 0;
     //  int  midreg;
-    int  rightreg;
+    int  rightreg= NOREG;
+
+    // Empty tree, do nothing
+    if (n == NULL) 
+        return(NOREG);
+
 
     // We now have specific AST node handling at the top
     switch (n->op)//此处填写语句类型 if fun 。。。
@@ -515,11 +520,19 @@ void genglobsym(struct symtable* node)
     cgglobsym(node);
 }
 // 生成字符串的汇编代码
-int genglobstr(char* strvalue)
+// If append is true, append to
+// previous genglobstr() call.
+int genglobstr(char* strvalue, int append) 
 {
     int l = genlabel();
-    cgglobstr(l, strvalue);
-    return(l);
+    cgglobstr(l, strvalue, append);
+    return (l);
+}
+
+// char *c= "sa" "asasas"; 
+void genglobstrend(void)// 字符拼接末尾标识
+{
+    cgglobstrend();
 }
 
 // 获取大小

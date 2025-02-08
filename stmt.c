@@ -109,7 +109,6 @@ struct ASTnode* print_statement()
 
 
 
-
 struct ASTnode* if_statement()
 {
 
@@ -205,14 +204,16 @@ struct ASTnode* for_statement()
 
 static struct ASTnode* return_statement()
 {
-    struct ASTnode* tree;
+    struct ASTnode* tree=NULL;
     int returntype;
     int  functype;
-
+#if 0
     if (Functionid->type == P_VOID)
         fatal("Can't return from a void function");
+#endif // 0
 
     match(T_RETURN, "return");
+#if 0
     lparen();
 
     tree = binexpr(0);
@@ -225,6 +226,37 @@ static struct ASTnode* return_statement()
     }
 
     rparen();
+#endif // 0
+    // See if we have a return value
+    // 如果我们有返回值
+    // 如果匹配（
+    if (Token.token == T_LPAREN) 
+    {
+        // Can't return a value if function returns P_VOID
+        if (Functionid->type == P_VOID)
+            fatal("Can't return from a void function");
+
+        // Skip the left parenthesis
+        lparen();
+
+        // Parse the following expression
+        // 生成返回值
+        tree = binexpr(0);
+
+        // Ensure this is compatible with the function's type
+        tree = modify_type(tree, Functionid->type, Functionid->ctype, 0);
+        if (tree == NULL)
+            fatal("Incompatible type to return");
+
+        // Get the ')'
+        rparen();
+    }
+    else// 没有返回值
+    {
+        if (Functionid->type != P_VOID)
+            fatal("Must return a value from a non-void function");
+    }
+    
 
     semi(); //在此处匹配；
     // 最终生成A_RETURN
@@ -397,6 +429,10 @@ struct ASTnode* single_statement()
 
     switch (Token.token)
     {
+    case T_SEMI:
+        // An empty statement
+        semi();
+        break;
     case T_LBRACE:
         // We have a '{', so this is a compound statement
         lbrace();
@@ -470,6 +506,14 @@ struct ASTnode* compound_statement(int inswitch)
 
     while (1)
     {
+
+        // Leave if we've hit the end token. We do this first to allow
+   // an empty compound statement
+        if (Token.token == T_RBRACE)
+            return (left);
+        if (inswitch && (Token.token == T_CASE || Token.token == T_DEFAULT))
+            return (left);
+
         // Parse a single statement
         tree = single_statement();
 

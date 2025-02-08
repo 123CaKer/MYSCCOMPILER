@@ -3,6 +3,55 @@
 #include "decl.h"
 
 
+// Given a pointer to a symbol that may already exist
+// return true if this symbol doesn't exist. We use
+// this function to convert externs into globals
+
+/*
+*    extern int a （sym->class == C_GLOBAL global）  
+*     class    type= P_INT
+*       int a ctype= P_INT
+*/
+int is_new_symbol(struct symtable* sym, int class, int type, struct symtable* ctype)
+{
+
+    // There is no existing symbol, thus is new
+    // 如果当前是一个空的 说明是新的
+    if (sym == NULL)
+        return(1);
+
+    // global versus extern: if they match that it's not new
+    // and we can convert the class to global
+    /*
+    * 如果当前为全局并且extern的，那么就转换为全局符号
+    */
+    if ((sym->class == C_GLOBAL && class == C_EXTERN)
+        || (sym->class == C_EXTERN && class == C_GLOBAL))
+    {
+
+        // If the types don't match, there's a problem
+        if (type != sym->type)
+            fatals("Type mismatch between global/extern", sym->name);
+
+        // Struct/unions, also compare the ctype
+        // 结构体和union必须匹配
+        if (type >= P_STRUCT && ctype != sym->ctype)
+            fatals("Type mismatch between global/extern", sym->name);
+
+        // If we get to here, the types match, so mark the symbol
+        // as global
+        // 匹配好的是为全局变量
+        sym->class = C_GLOBAL;
+        // Return that symbol is not new
+        return(0);
+    }
+
+    // It must be a duplicate symbol if we get here
+    // 一定是一个重复声明的
+    fatals("Duplicate global variable declaration", sym->name);
+    return(-1);	
+}
+
 
 // Parse the current token and return a primitive type enum value,
 // a pointer to any composite type and possibly modify
@@ -212,7 +261,10 @@ struct symtable* scalar_declaration(char* varname, int type, struct symtable* ct
     case C_STATIC:
     case C_EXTERN:
     case C_GLOBAL:
-        sym = addglob(varname, type, ctype, S_VARIABLE, class, 1, 0);
+        // See if this variable is new or already exists
+        sym = findglob(varname);
+        if (is_new_symbol(sym, class, type, ctype))
+            sym = addglob(varname, type, ctype, S_VARIABLE, class, 1, 0);
         break;
     case C_LOCAL:
         sym = addlocl(varname, type, ctype, S_VARIABLE, 1);
@@ -332,13 +384,12 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
     scan(&Token);
 
     // See we have an array size 其实这里可以改为 一个binexpr 当前在chr 45 实现
-    if (Token.token != T_LBRACKET)
+    if (Token.token != T_RBRACKET)// 可以编译 extern int a[]; int a[11];
     {
         nelems = parse_literal(P_INT);// 经过变量折叠技术 将当前编译器值进行优化 
         if (nelems <= 0)
             fatald("Array size is illegal", nelems);
     }
-
     // 匹配 ']'
     match(T_RBRACKET, "]");
 
@@ -350,8 +401,10 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
     case C_STATIC:
     case C_EXTERN:
     case C_GLOBAL:
-        sym = addglob(varname, pointer_to(type), ctype, S_ARRAY, class,
-            0, 0);
+        // See if this variable is new or already exists
+        sym = findglob(varname);
+        if (is_new_symbol(sym, class, pointer_to(type), ctype))
+            sym = addglob(varname, pointer_to(type), ctype, S_ARRAY, class, 0, 0);
         break;
     default:
         fatal("For now, declaration of non-global arrays is not implemented");
@@ -845,8 +898,10 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype, int class,
     case C_EXTERN:
     case C_STATIC:
     case C_GLOBAL:
-        if (findglob(varname) != NULL)
+        /*  当前已更改 extern  故注释掉
+        * if (findglob(varname) != NULL)
             fatals("Duplicate global variable declaration", varname);
+        */       
     case C_LOCAL:
     case C_PARAM:
         if (findlocl(varname) != NULL)

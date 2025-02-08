@@ -48,8 +48,9 @@ int next(void)
 
     c = fgetc(Infile);			// Read from input file
 
-    while (c == '#')
+    while (Linestart && c == '#') 
     {			// We've hit a pre-processor statement
+        Linestart = 0;		// No longer at the start of the line
         scan(&Token);			// 获取行号
         if (Token.token != T_INTLIT)
             fatals("Expecting pre-processor line number, got:", Text);
@@ -68,10 +69,16 @@ int next(void)
 
         while ((c = fgetc(Infile)) != '\n'); // Skip to the end of the line
         c = fgetc(Infile);			// and get the next character
+        Linestart = 1;		// 回到新的第一行 Now back at the start of the line
     }
 
+    Linestart = 0;		// No longer at the start of the line 不再是预处理的行 设置为0
     if ('\n' == c)
+    {
         Line++;				// Increment line count
+        Linestart = 1;		// 回到新行的开始
+    }
+       
     return (c);
 }
 
