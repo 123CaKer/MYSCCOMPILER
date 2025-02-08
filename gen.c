@@ -3,6 +3,43 @@
 #include "decl.h"
 
 
+// Generate the code for an
+// A_LOGAND or A_LOGOR operation
+static int gen_logandor(struct ASTnode* n) {
+    // Generate two labels
+    int Lfalse = genlabel();
+    int Lend = genlabel();
+    int reg;
+
+    // Generate the code for the left expression
+    // followed by the jump to the false label
+    reg = genAST(n->left, NOLABEL, NOLABEL, NOLABEL, 0);
+    cgboolean(reg, n->op, Lfalse);
+    genfreeregs(NOREG);
+
+    // Generate the code for the right expression
+    // followed by the jump to the false label
+    reg = genAST(n->right, NOLABEL, NOLABEL, NOLABEL, 0);
+    cgboolean(reg, n->op, Lfalse);
+    genfreeregs(reg);
+
+    // We didn't jump so set the right boolean value
+    if (n->op == A_LOGAND) {
+        cgloadboolean(reg, 1);
+        cgjump(Lend);
+        cglabel(Lfalse);
+        cgloadboolean(reg, 0);
+    }
+    else {
+        cgloadboolean(reg, 0);
+        cgjump(Lend);
+        cglabel(Lfalse);
+        cgloadboolean(reg, 1);
+    }
+    cglabel(Lend);
+    return(reg);
+}
+
 // 生成 if  if_else 从句 
 static int genIFAST(struct ASTnode* n, int looptoplabel, int loopendlabel)
 {
@@ -92,15 +129,26 @@ static int genWHILE(struct ASTnode* n)
 
 
 */
+/*
+Spill the registers first.
+Copy the arguments to the function (using the registers).
+Call the function.
+Reload the registers before we Copy the register's return value.
+*/
 static int gen_funccall(struct ASTnode* n)
 {
     struct ASTnode* gluetree = n->left;
     int reg;
     int numargs = 0;
 
+    // Save the registers before we copy the arguments
+    // 在进行函数调用之前寄存器数据加载到主存中
+    spill_all_regs();
+
     // If there is a list of arguments, walk this list
     // from the last argument (right-hand child) to the
     // first
+    // 复制参数 （将reg中数据复制到stack）
     while (gluetree)
     {
         // 右边生成
@@ -110,12 +158,13 @@ static int gen_funccall(struct ASTnode* n)
         // Keep the first (highest) number of arguments
         if (numargs == 0)
             numargs = gluetree->a_size;
-        genfreeregs(NOREG);
+       // genfreeregs(NOREG);
         gluetree = gluetree->left;
     }
 
     // Call the function, clean up the stack (based on numargs),
     // and return its result
+    // 调用目标函数
     return (cgcall(n->sym, numargs));
 }
 
@@ -289,9 +338,9 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
     case A_XOR:
         return (cgxor(leftreg, rightreg));
     case A_LOGOR:
-        return (cglogor(leftreg, rightreg));
+        return (gen_logandor(n));
     case A_LOGAND:
-        return (cglogand(leftreg, rightreg));
+        return (gen_logandor(n));
     case A_LSHIFT:
         return (cgshl(leftreg, rightreg));
     case A_RSHIFT:
