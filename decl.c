@@ -188,7 +188,7 @@ int parse_literal(int type)
 {
     struct ASTnode* tree;
 
-    tree = optimise(binexpr(0));// 生成fold ast节点
+    tree = optimise(binexpr(0));// 生成fold ast节点 其实也用于数组int a【 2+5】
 
 
      // If there's a cast, get the child and
@@ -373,9 +373,9 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
 {
 
     struct symtable* sym = NULL;	// New symbol table entry
-    int nelems = -1;	// Assume the number of elements won't be given
+    int nelems = -1;	// Assume the number of elements won't be given 成员个数
     int maxelems;		// int c[]={......} 大括号中最多10个
-    int* initlist;	// The list of initial elements 
+    int* initlist;	// The list of initial elements {......} 的内容
     int i = 0, j;
     int casttype, //强制转换类型
         newtype; // 新类型
@@ -406,14 +406,17 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
         if (is_new_symbol(sym, class, pointer_to(type), ctype))
             sym = addglob(varname, pointer_to(type), ctype, S_ARRAY, class, 0, 0);
         break;
+    case C_LOCAL:
+        sym = addlocl(varname, pointer_to(type), ctype, S_ARRAY, 0);
+        break;
     default:
-        fatal("For now, declaration of non-global arrays is not implemented");
+        fatal("Declaration of array parameters is not implemented");// 不可以直接声明 int a[];
     }
 
-    // 队列初始化 之前为赋值
+    // 数组初始化 
     if (Token.token == T_ASSIGN)
     {
-        if (class != C_GLOBAL || class != C_STATIC)
+        if (class != C_GLOBAL && class != C_STATIC)// 在chr 56 时 阻止局部array赋值
             fatals("Variable can not be initialised", varname);
         scan(&Token);
 
@@ -430,7 +433,8 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
             maxelems = TABLE_INCREMENT;
         initlist = (int*)malloc(maxelems * sizeof(int));
 
-        // 扫描{....}列表中的值
+        // 扫描{....}列表中的值 chr 56 以前
+#if 0
         while (1)
         {
 
@@ -441,7 +445,7 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
                 fatal("Too many values in initialisation list");
 
 
-            if (Token.token == T_LPAREN)
+            if (Token.token == T_LPAREN)// 匹配大括号  错误定于此处 勿动
             {
                 // Get the type in the cast
                 scan(&Token);
@@ -479,15 +483,69 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
             // Next token must be a comma, then
             comma();
         }
+#endif // 0
+
+        //扫描{....}列表中的值
+        while (1)
+        {
+
+            // Check we can add the next value, then parse and add it
+            if (nelems != -1 && i == maxelems)
+                fatal("Too many values in initialisation list");
+
+            initlist[i++] = parse_literal(type);
+
+            // Increase the list size if the original size was
+            // not set and we have hit the end of the current list
+               /*
+           eg . int a[]={........} // 100 个数组
+                    nelems==-1 【】未给出
+             那么当前maxelems += TABLE_INCREMENT; 依照递增TABLE_INCREMENT来进行增加realloc分配空间
+
+        */
+            if (nelems == -1 && i == maxelems) 
+            {
+                maxelems += TABLE_INCREMENT;
+                initlist = (int*)realloc(initlist, maxelems * sizeof(int));
+            }
+            // Leave when we hit the right curly bracket
+            if (Token.token == T_RBRACE) 
+            {
+                scan(&Token);
+                break;
+            }
+
+            comma();
+        }
+       
 
         // Zero any unused elements in the initlist.
         // Attach the list to the symbol table entry
+
+        /*
+             int a[10]={0,1,2,3.......}
+             当前i为4 剩下的10-4=6个填充为0
+        */
         for (j = i; j < sym->nelems; j++)
             initlist[j] = 0;
         if (i > nelems)
             nelems = i;
         sym->initlist = initlist;
     }
+
+    // Set the size of the array and the number of elements  Only externs can have no elements.
+
+    /*
+    *    extern int a[];
+    *     int a[23];
+     fun()......     允许
+    * 
+    */
+
+    // 仅有extern的数组成员可以为空
+    // extern int a[1];
+    if (class != C_EXTERN && nelems <= 0)
+        fatals("Array must have non-zero elements", sym->name);
 
     // Set the size of the array and the number of elements
     sym->nelems = nelems;//当前数组符号表的个数
@@ -913,7 +971,10 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype, int class,
 
     // Add the array or scalar variable to the symbol table
     if (Token.token == T_LBRACKET)
+    {
         sym = array_declaration(varname, type, ctype, class);
+        *tree = NULL;	// Local arrays are not initialised
+    }   
     else
         sym = scalar_declaration(varname, type, ctype, class, tree);
     return (sym);

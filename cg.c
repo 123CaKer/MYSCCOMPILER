@@ -3,6 +3,7 @@
 #include "decl.h"
 
 
+
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
 
@@ -74,10 +75,10 @@ static int localOffset;
 static int stackOffset;
 
 // Create the position of a new local variable.
-static int newlocaloffset(int type) {
+static int newlocaloffset(int size) {
     // Decrement the offset by a minimum of 4 bytes
     // and allocate on the stack
-    localOffset += (cgprimsize(type) > 4) ? cgprimsize(type) : 4;
+    localOffset += (size > 4) ? size : 4;
     return (-localOffset);
 }
 
@@ -244,7 +245,7 @@ void cgfuncpreamble(struct symtable* sym) {
             paramOffset += 8;
         }
         else {
-            parm->st_posn = newlocaloffset(parm->type);
+            parm->st_posn = newlocaloffset(parm->size);
             cgstorlocal(paramReg--, parm);
         }
     }
@@ -252,7 +253,7 @@ void cgfuncpreamble(struct symtable* sym) {
     // For the remainder, if they are a parameter then they are
     // already on the stack. If only a local, make a stack position.
     for (locvar = Loclhead; locvar != NULL; locvar = locvar->next) {
-        locvar->st_posn = newlocaloffset(locvar->type);
+        locvar->st_posn = newlocaloffset(locvar->size);
     }
 
     // Align the stack pointer to be a multiple of 16
@@ -801,8 +802,9 @@ int cgstorderef(int r1, int r2, int type) {
     case 1:
         fprintf(Outfile, "\tmovb\t%s, (%s)\n", breglist[r1], reglist[r2]);
         break;
-    case 2:
     case 4:
+        fprintf(Outfile, "\tmovl\t%s, (%s)\n", dreglist[r1], reglist[r2]);
+        break;
     case 8:
         fprintf(Outfile, "\tmovq\t%s, (%s)\n", reglist[r1], reglist[r2]);
         break;
