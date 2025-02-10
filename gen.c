@@ -77,9 +77,14 @@ static int genIFAST(struct ASTnode* n, int looptoplabel, int loopendlabel)
     cglabel(Lfalse);
 
     //若假存在 生成假分支语句 并跳转
+
+    /*
+    现在，编译器可以解析其自己的每个源代码文件了。但当我试图链接它们时，我得到了一个关于丢失L0标签的警告。
+     调查原因，发现我没有在gen.c的genIFAST（）中传递loopendlabel。修复程序如下：
+    */
     if (n->right)
     {
-        genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
+        genAST(n->right, NOLABEL, NOLABEL, loopendlabel, n->op);
         genfreeregs(NOREG);
         cglabel(Lend);
     }
@@ -330,7 +335,9 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
     case A_MULTIPLY:
         return cgmul(leftreg, rightreg);
     case A_DIVIDE:
-        return cgdiv(leftreg, rightreg);
+        return cgdivmod(leftreg, rightreg, A_DIVIDE);
+    case A_MOD:
+        return (cgdivmod(leftreg, rightreg, A_MOD));
     case A_INTLIT:
         return (cgloadint(n->a_intvalue, n->type)); // 返回分配的寄存器下标号
     case A_STRLIT:
@@ -361,6 +368,8 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         */
         // Load our value if we are an rvalue
       // or we are being dereferenced
+#if 0
+
         if (n->rvalue || parentASTop == A_DEREF)
         {
             if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC || n->sym->class == C_EXTERN)
@@ -371,6 +380,17 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
             {
                 return (cgloadlocal(n->sym, n->op));// C_PARAM和C_LOCAL 
             }
+        }
+        else
+            return (NOREG);
+
+#endif // 0
+
+        // Load our value if we are an rvalue
+    // or we are being dereferenced
+        if (n->rvalue || parentASTop == A_DEREF)
+        {
+            return (cgloadvar(n->sym, n->op));
         }
         else
             return (NOREG);
@@ -404,6 +424,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
     case A_ASMINUS:
     case A_ASSTAR:
     case A_ASSLASH:
+    case A_ASMOD:
     case A_ASSIGN:
 
         // For the '+=' and friends operators, generate suitable code
@@ -424,7 +445,11 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
             n->right = n->left;
             break;
         case A_ASSLASH:
-            leftreg = cgdiv(leftreg, rightreg);
+            leftreg = cgdivmod(leftreg, rightreg, A_ASSLASH);
+            n->right = n->left;
+            break;
+        case A_ASMOD:
+            leftreg = cgdivmod(leftreg, rightreg, A_MOD);
             n->right = n->left;
             break;
         }
@@ -493,29 +518,57 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
     case A_POSTINC:
         // Load the variable's value into a register,
         // then increment it
+#if 0
+
         if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC)
             return (cgloadglob(n->sym, n->op));
         else
             return (cgloadlocal(n->sym, n->op));
+
+#endif // 0
+        // Load and decrement the variable's value into a register
+      // and post increment/decrement it
+        return (cgloadvar(n->sym, n->op));
+
     case A_POSTDEC:
+
+#if 0
         // Load the variable's value into a register,
-        // then decrement it
+               // then decrement it
         if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC)
             return (cgloadglob(n->sym, n->op));
         else
             return (cgloadlocal(n->sym, n->op));
+
+#endif // 0
+      
+        // Load and decrement the variable's value into a register
+   // and post increment/decrement it
+        return (cgloadvar(n->sym, n->op));
     case A_PREINC:
+#if 0
         // Load and increment the variable's value into a register
         if (n->left->sym->class == C_GLOBAL || n->left->sym->class == C_STATIC)
             return (cgloadglob(n->left->sym, n->op));
         else
             return (cgloadlocal(n->left->sym, n->op));
+#endif // 0
+        // Load and decrement the variable's value into a register
+     // and pre increment/decrement it
+        return (cgloadvar(n->left->sym, n->op));
+      
     case A_PREDEC:
+#if 0
         // Load and decrement the variable's value into a register
         if (n->left->sym->class == C_GLOBAL || n->left->sym->class == C_STATIC)
             return (cgloadglob(n->left->sym, n->op));
         else
             return (cgloadlocal(n->left->sym, n->op));
+#endif // 0
+
+        // Load and decrement the variable's value into a register
+       // and pre increment/decrement it
+        return (cgloadvar(n->left->sym, n->op));
     case A_NEGATE:
         return (cgnegate(leftreg));
     case A_INVERT:

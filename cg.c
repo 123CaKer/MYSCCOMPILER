@@ -1,3 +1,4 @@
+
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
@@ -118,6 +119,7 @@ static void popreg(int r) {
 // But if reg is positive, don't free that one.
 void freeall_registers(int keepreg) {
     int i;
+    fprintf(Outfile, "# freeing all registers\n");
     for (i = 0; i < NUMFREEREGS; i++)
         if (i != keepreg)
             freereg[i] = 1;
@@ -138,6 +140,7 @@ int alloc_register(void) {
     for (reg = 0; reg < NUMFREEREGS; reg++) {
         if (freereg[reg]) {
             freereg[reg] = 0;
+            fprintf(Outfile, "# allocated register %s\n", reglist[reg]);
             return (reg);
         }
     }
@@ -145,7 +148,7 @@ int alloc_register(void) {
     // We have no registers, so we must spill one
     reg = (spillreg % NUMFREEREGS);
     spillreg++;
-    fprintf(Outfile, "# spilling reg %d\n", reg);
+    fprintf(Outfile, "# spilling reg %s\n", reglist[reg]);
     pushreg(reg);
     return (reg);
 }
@@ -154,7 +157,7 @@ int alloc_register(void) {
 // Check to see if it's not already there.
 static void free_register(int reg) {
     if (freereg[reg] != 0) {
-        fprintf(Outfile, "# error trying to free register %d\n", reg);
+        fprintf(Outfile, "# error trying to free register %s\n", reglist[reg]);
         fatald("Error trying to free register", reg);
     }
 
@@ -162,10 +165,11 @@ static void free_register(int reg) {
     if (spillreg > 0) {
         spillreg--;
         reg = (spillreg % NUMFREEREGS);
-        fprintf(Outfile, "# unspilling reg %d\n", reg);
+        fprintf(Outfile, "# unspilling reg %s\n", reglist[reg]);
         popreg(reg);
     }
     else {
+        fprintf(Outfile, "# freeing reg %s\n", reglist[reg]);
         freereg[reg] = 1;
     }
 }
@@ -195,23 +199,23 @@ void cgpreamble() {
         "# %%rsi = switch table, %%rax = expr\n"
         "# from SubC: http://www.t3x.org/subc/\n"
         "\n"
-        "switch:\n"
+        "__switch:\n"
         "        pushq   %%rsi\n"
         "        movq    %%rdx, %%rsi\n"
         "        movq    %%rax, %%rbx\n"
         "        cld\n"
         "        lodsq\n"
         "        movq    %%rax, %%rcx\n"
-        "next:\n"
+        "__next:\n"
         "        lodsq\n"
         "        movq    %%rax, %%rdx\n"
         "        lodsq\n"
         "        cmpq    %%rdx, %%rbx\n"
-        "        jnz     no\n"
+        "        jnz     __no\n"
         "        popq    %%rsi\n"
         "        jmp     *%%rax\n"
-        "no:\n"
-        "        loop    next\n"
+        "__no:\n"
+        "        loop    __next\n"
         "        lodsq\n"
         "        popq    %%rsi\n" "        jmp     *%%rax\n" "\n");
 }
@@ -285,102 +289,76 @@ int cgloadint(int value, int type) {
 // Return the number of the register. If the
 // operation is pre- or post-increment/decrement,
 // also perform this action.
-int cgloadglob(struct symtable* sym, int op) {
+int cgloadvar(struct symtable* sym, int op) {
+    int r, postreg, offset = 1;
+
     // Get a new register
-    int r = alloc_register();
+    r = alloc_register();
 
-    if (cgprimsize(sym->type) == 8) {
-        if (op == A_PREINC)
-            fprintf(Outfile, "\tincq\t%s(%%rip)\n", sym->name);
-        if (op == A_PREDEC)
-            fprintf(Outfile, "\tdecq\t%s(%%rip)\n", sym->name);
-        fprintf(Outfile, "\tmovq\t%s(%%rip), %s\n", sym->name, reglist[r]);
-        if (op == A_POSTINC)
-            fprintf(Outfile, "\tincq\t%s(%%rip)\n", sym->name);
-        if (op == A_POSTDEC)
-            fprintf(Outfile, "\tdecq\t%s(%%rip)\n", sym->name);
-    }
-    else
-        // Print out the code to initialise it
-        switch (sym->type) {
-        case P_CHAR:
-            if (op == A_PREINC)
-                fprintf(Outfile, "\tincb\t%s(%%rip)\n", sym->name);
-            if (op == A_PREDEC)
-                fprintf(Outfile, "\tdecb\t%s(%%rip)\n", sym->name);
-            fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", sym->name, reglist[r]);
-            if (op == A_POSTINC)
-                fprintf(Outfile, "\tincb\t%s(%%rip)\n", sym->name);
-            if (op == A_POSTDEC)
-                fprintf(Outfile, "\tdecb\t%s(%%rip)\n", sym->name);
-            break;
-        case P_INT:
-            if (op == A_PREINC)
-                fprintf(Outfile, "\tincl\t%s(%%rip)\n", sym->name);
-            if (op == A_PREDEC)
-                fprintf(Outfile, "\tdecl\t%s(%%rip)\n", sym->name);
-            fprintf(Outfile, "\tmovslq\t%s(%%rip), %s\n", sym->name, reglist[r]);
-            if (op == A_POSTINC)
-                fprintf(Outfile, "\tincl\t%s(%%rip)\n", sym->name);
-            if (op == A_POSTDEC)
-                fprintf(Outfile, "\tdecl\t%s(%%rip)\n", sym->name);
-            break;
-        default:
-            fatald("Bad type in cgloadglob:", sym->type);
+    // If the symbol is a pointer, use the size
+    // of the type that it points to as any
+    // increment or decrement. If not, it's one.
+    if (ptrtype(sym->type))
+        offset = typesize(value_at(sym->type), sym->ctype);
+
+    // Negate the offset for decrements
+    if (op == A_PREDEC || op == A_POSTDEC)
+        offset = -offset;
+
+    // If we have a pre-operation
+    if (op == A_PREINC || op == A_PREDEC) {
+        // Load the symbol's address
+        if (sym->class == C_LOCAL || sym->class == C_PARAM)
+            fprintf(Outfile, "\tleaq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
+        else
+            fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[r]);
+
+        // and change the value at that address
+        switch (sym->size) {
+        case 1: fprintf(Outfile, "\taddb\t$%d,(%s)\n", offset, reglist[r]); break;
+        case 4: fprintf(Outfile, "\taddl\t$%d,(%s)\n", offset, reglist[r]); break;
+        case 8: fprintf(Outfile, "\taddq\t$%d,(%s)\n", offset, reglist[r]); break;
         }
-    return (r);
-}
-
-// Load a value from a local variable into a register.
-// Return the number of the register. If the
-// operation is pre- or post-increment/decrement,
-// also perform this action.
-int cgloadlocal(struct symtable* sym, int op) {
-    // Get a new register
-    int r = alloc_register();
-
-    // Print out the code to initialise it
-    if (cgprimsize(sym->type) == 8) {
-        if (op == A_PREINC)
-            fprintf(Outfile, "\tincq\t%d(%%rbp)\n", sym->st_posn);
-        if (op == A_PREDEC)
-            fprintf(Outfile, "\tdecq\t%d(%%rbp)\n", sym->st_posn);
-        fprintf(Outfile, "\tmovq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
-        if (op == A_POSTINC)
-            fprintf(Outfile, "\tincq\t%d(%%rbp)\n", sym->st_posn);
-        if (op == A_POSTDEC)
-            fprintf(Outfile, "\tdecq\t%d(%%rbp)\n", sym->st_posn);
     }
-    else
-        switch (sym->type) {
-        case P_CHAR:
-            if (op == A_PREINC)
-                fprintf(Outfile, "\tincb\t%d(%%rbp)\n", sym->st_posn);
-            if (op == A_PREDEC)
-                fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", sym->st_posn);
-            fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", sym->st_posn,
-                reglist[r]);
-            if (op == A_POSTINC)
-                fprintf(Outfile, "\tincb\t%d(%%rbp)\n", sym->st_posn);
-            if (op == A_POSTDEC)
-                fprintf(Outfile, "\tdecb\t%d(%%rbp)\n", sym->st_posn);
-            break;
-        case P_INT:
-            if (op == A_PREINC)
-                fprintf(Outfile, "\tincl\t%d(%%rbp)\n", sym->st_posn);
-            if (op == A_PREDEC)
-                fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", sym->st_posn);
-            fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", sym->st_posn,
-                reglist[r]);
-            if (op == A_POSTINC)
-                fprintf(Outfile, "\tincl\t%d(%%rbp)\n", sym->st_posn);
-            if (op == A_POSTDEC)
-                fprintf(Outfile, "\tdecl\t%d(%%rbp)\n", sym->st_posn);
-            break;
-        default:
-            fatald("Bad type in cgloadlocal:", sym->type);
+
+    // Now load the output register with the value
+    if (sym->class == C_LOCAL || sym->class == C_PARAM) {
+        switch (sym->size) {
+        case 1: fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]); break;
+        case 4: fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]); break;
+        case 8: fprintf(Outfile, "\tmovq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
         }
-    return (r);
+    }
+    else {
+        switch (sym->size) {
+        case 1: fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", sym->name, reglist[r]); break;
+        case 4: fprintf(Outfile, "\tmovslq\t%s(%%rip), %s\n", sym->name, reglist[r]); break;
+        case 8: fprintf(Outfile, "\tmovq\t%s(%%rip), %s\n", sym->name, reglist[r]);
+        }
+    }
+
+    // If we have a post-operation, get a new register
+    if (op == A_POSTINC || op == A_POSTDEC) {
+        postreg = alloc_register();
+
+        // Load the symbol's address
+        if (sym->class == C_LOCAL || sym->class == C_PARAM)
+            fprintf(Outfile, "\tleaq\t%d(%%rbp), %s\n", sym->st_posn, reglist[postreg]);
+        else
+            fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[postreg]);
+        // and change the value at that address
+
+        switch (sym->size) {
+        case 1: fprintf(Outfile, "\taddb\t$%d,(%s)\n", offset, reglist[postreg]); break;
+        case 4: fprintf(Outfile, "\taddl\t$%d,(%s)\n", offset, reglist[postreg]); break;
+        case 8: fprintf(Outfile, "\taddq\t$%d,(%s)\n", offset, reglist[postreg]); break;
+        }
+        // and free the register
+        free_register(postreg);
+    }
+
+    // Return the register with the value
+    return(r);
 }
 
 // Given the label number of a global string,
@@ -416,13 +394,24 @@ int cgmul(int r1, int r2) {
     return (r1);
 }
 
-// Divide the first register by the second and
+// Divide or modulo the first register by the second and
 // return the number of the register with the result
-int cgdiv(int r1, int r2) {
+/*
+
+mov rax, -1      ; 将 RAX 设置为 -1
+cqo              ; 符号扩展 RAX 到 RDX:RAX
+mov rbx, 2       ; 将 RBX 设置为 2
+idiv rbx         ; 执行有符号除法，结果在 RAX，余数在 RDX
+参考文档https://blog.csdn.net/weixin_43844521/article/details/132829932
+*/
+int cgdivmod(int r1, int r2, int op) {
     fprintf(Outfile, "\tmovq\t%s,%%rax\n", reglist[r1]);
     fprintf(Outfile, "\tcqo\n");
     fprintf(Outfile, "\tidivq\t%s\n", reglist[r2]);
-    fprintf(Outfile, "\tmovq\t%%rax,%s\n", reglist[r1]);
+    if (op == A_DIVIDE)
+        fprintf(Outfile, "\tmovq\t%%rax,%s\n", reglist[r1]);
+    else
+        fprintf(Outfile, "\tmovq\t%%rdx,%s\n", reglist[r1]);
     free_register(r2);
     return (r1);
 }
@@ -841,7 +830,7 @@ void cgswitch(int reg, int casecount, int toplabel,
     cglabel(toplabel);
     fprintf(Outfile, "\tmovq\t%s, %%rax\n", reglist[reg]);
     fprintf(Outfile, "\tleaq\tL%d(%%rip), %%rdx\n", label);
-    fprintf(Outfile, "\tjmp\tswitch\n");
+    fprintf(Outfile, "\tjmp\t__switch\n");
 }
 
 // Move value between registers
