@@ -289,32 +289,47 @@ int cgloadint(int value, int type) {
 // Return the number of the register. If the
 // operation is pre- or post-increment/decrement,
 // also perform this action.
-int cgloadvar(struct symtable* sym, int op) {
+// 加载变量
+int cgloadvar(struct symtable* sym, int op)
+{
     int r, postreg, offset = 1;
 
     // Get a new register
+    // 获取新的寄存器
     r = alloc_register();
 
     // If the symbol is a pointer, use the size
     // of the type that it points to as any
     // increment or decrement. If not, it's one.
+    /// 如果是指针的话获取当前指针所指向的偏移量
+    /*
+    * 
+    *    int * p 偏移为int
+    *  
+    *    
+    */
     if (ptrtype(sym->type))
         offset = typesize(value_at(sym->type), sym->ctype);
 
+    //  += -= 在modify_type()
     // Negate the offset for decrements
+    /// 若地址为--  ,设置为负数
     if (op == A_PREDEC || op == A_POSTDEC)
         offset = -offset;
 
     // If we have a pre-operation
-    if (op == A_PREINC || op == A_PREDEC) {
+    if (op == A_PREINC || op == A_PREDEC)
+    {
         // Load the symbol's address
         if (sym->class == C_LOCAL || sym->class == C_PARAM)
             fprintf(Outfile, "\tleaq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
-        else
+        else// static extern global
             fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[r]);
 
         // and change the value at that address
-        switch (sym->size) {
+        // 地址增加量为 char int long 型
+        switch (sym->size)
+        {
         case 1: fprintf(Outfile, "\taddb\t$%d,(%s)\n", offset, reglist[r]); break;
         case 4: fprintf(Outfile, "\taddl\t$%d,(%s)\n", offset, reglist[r]); break;
         case 8: fprintf(Outfile, "\taddq\t$%d,(%s)\n", offset, reglist[r]); break;
@@ -322,24 +337,36 @@ int cgloadvar(struct symtable* sym, int op) {
     }
 
     // Now load the output register with the value
-    if (sym->class == C_LOCAL || sym->class == C_PARAM) {
-        switch (sym->size) {
-        case 1: fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]); break;
-        case 4: fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]); break;
+    // 将变量偏移位置（实际）加载到reg中
+    /*
+         int *sds=&a;
+        sds++;
+    
+    */
+    if (sym->class == C_LOCAL || sym->class == C_PARAM)
+    {
+        switch (sym->size) // 地址增加量为 char int long 型
+        {
+        case 1: fprintf(Outfile, "\tmovzbq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]); break;// 基于基址寄存器 movzbq+1
+        case 4: fprintf(Outfile, "\tmovslq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]); break;// 基于基址寄存器 movslq+4
         case 8: fprintf(Outfile, "\tmovq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
         }
     }
-    else {
-        switch (sym->size) {
-        case 1: fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", sym->name, reglist[r]); break;
-        case 4: fprintf(Outfile, "\tmovslq\t%s(%%rip), %s\n", sym->name, reglist[r]); break;
+    else 
+    {
+        switch (sym->size) // 地址增加量为 char int long 型  rip 为相对寻址寄存器，依（PC）的内容为基址
+        {
+        case 1: fprintf(Outfile, "\tmovzbq\t%s(%%rip), %s\n", sym->name, reglist[r]); break;// 基于（PC） movzbq+1
+        case 4: fprintf(Outfile, "\tmovslq\t%s(%%rip), %s\n", sym->name, reglist[r]); break;// 基于（PC） movzbq+4
         case 8: fprintf(Outfile, "\tmovq\t%s(%%rip), %s\n", sym->name, reglist[r]);
         }
     }
-
-    // If we have a post-operation, get a new register
-    if (op == A_POSTINC || op == A_POSTDEC) {
-        postreg = alloc_register();
+    ///我们选择一条指令，根据符号的大小对结果进行零填充。局部是基于rbp 全局基于 rip
+    // If we have a post-operation, get a new register 
+    // 同上 但是r中保存了值 ，故重新申请使用一个reg
+    if (op == A_POSTINC || op == A_POSTDEC)
+    {
+        postreg = alloc_register();// 获取一个新的寄存器
 
         // Load the symbol's address
         if (sym->class == C_LOCAL || sym->class == C_PARAM)
@@ -348,7 +375,8 @@ int cgloadvar(struct symtable* sym, int op) {
             fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[postreg]);
         // and change the value at that address
 
-        switch (sym->size) {
+        switch (sym->size) 
+        {
         case 1: fprintf(Outfile, "\taddb\t$%d,(%s)\n", offset, reglist[postreg]); break;
         case 4: fprintf(Outfile, "\taddl\t$%d,(%s)\n", offset, reglist[postreg]); break;
         case 8: fprintf(Outfile, "\taddq\t$%d,(%s)\n", offset, reglist[postreg]); break;
@@ -358,6 +386,7 @@ int cgloadvar(struct symtable* sym, int op) {
     }
 
     // Return the register with the value
+    // 返回加载值的寄存器r
     return(r);
 }
 
@@ -393,6 +422,7 @@ int cgmul(int r1, int r2) {
     free_register(r2);
     return (r1);
 }
+
 
 // Divide or modulo the first register by the second and
 // return the number of the register with the result
@@ -667,13 +697,24 @@ static char* cmplist[] =
 { "sete", "setne", "setl", "setg", "setle", "setge" };
 
 // Compare two registers and set if true.
-int cgcompare_and_set(int ASTop, int r1, int r2) {
+int cgcompare_and_set(int ASTop, int r1, int r2, int type) {
+    int size = cgprimsize(type);
+
 
     // Check the range of the AST operation
     if (ASTop < A_EQ || ASTop > A_GE)
         fatal("Bad ASTop in cgcompare_and_set()");
 
-    fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]);
+    switch (size) {
+    case 1:
+        fprintf(Outfile, "\tcmpb\t%s, %s\n", breglist[r2], breglist[r1]);
+        break;
+    case 4:
+        fprintf(Outfile, "\tcmpl\t%s, %s\n", dreglist[r2], dreglist[r1]);
+        break;
+    default:
+        fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]);
+    }
     fprintf(Outfile, "\t%s\t%s\n", cmplist[ASTop - A_EQ], breglist[r2]);
     fprintf(Outfile, "\tmovzbq\t%s, %s\n", breglist[r2], reglist[r2]);
     free_register(r1);
@@ -695,13 +736,24 @@ void cgjump(int l) {
 static char* invcmplist[] = { "jne", "je", "jge", "jle", "jg", "jl" };
 
 // Compare two registers and jump if false.
-int cgcompare_and_jump(int ASTop, int r1, int r2, int label) {
+int cgcompare_and_jump(int ASTop, int r1, int r2, int label, int type)
+{
+    int size = cgprimsize(type);
 
     // Check the range of the AST operation
     if (ASTop < A_EQ || ASTop > A_GE)
         fatal("Bad ASTop in cgcompare_and_set()");
 
-    fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]);
+    switch (size) {
+    case 1:
+        fprintf(Outfile, "\tcmpb\t%s, %s\n", breglist[r2], breglist[r1]);
+        break;
+    case 4:
+        fprintf(Outfile, "\tcmpl\t%s, %s\n", dreglist[r2], dreglist[r1]);
+        break;
+    default:
+        fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]);
+    }
     fprintf(Outfile, "\t%s\tL%d\n", invcmplist[ASTop - A_EQ], label);
     freeall_registers(NOREG);
     return (NOREG);
@@ -748,10 +800,11 @@ void cgreturn(int reg, struct symtable* sym) {
 
 // Generate code to load the address of an
 // identifier into a variable. Return a new register
-int cgaddress(struct symtable* sym) {
+int cgaddress(struct symtable* sym) 
+{
     int r = alloc_register();
 
-    if (sym->class == C_GLOBAL || sym->class == C_STATIC)
+    if (sym->class == C_GLOBAL || sym->class == C_EXTERN || sym->class == C_STATIC)
         fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[r]);
     else
         fprintf(Outfile, "\tleaq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);

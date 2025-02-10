@@ -602,6 +602,9 @@ int scan(struct token* t)
     }
     // We found a token
     t->tokstr = Tstring[t->token];
+#if 0
+    printf("Scanned %c\n", *(t->tokstr));
+#endif // 0
     return 1; //’“µΩtoken
 }
 

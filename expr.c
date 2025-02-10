@@ -292,7 +292,7 @@ struct ASTnode* prefix(int ptp)
         // recursively as a prefix expression
         scan(&Token);
         tree = prefix(ptp);
-
+        tree->rvalue = 1; // 将* （。。。。。。。。）整体是为右值
         // Ensure the tree's type is a pointer
         /// 确保是指针类型 
         if (!ptrtype(tree->type))

@@ -413,9 +413,9 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // a compare followed by a jump. Otherwise, compare registers
         // and set one to 1 or 0 based on the comparison.
         if (parentASTop == A_IF || parentASTop == A_WHILE || parentASTop == A_TERNARY)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel));
+            return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel,n->left->type));
         else
-            return (cgcompare_and_set(n->op, leftreg, rightreg));
+            return (cgcompare_and_set(n->op, leftreg, rightreg,n->left->type));
 
 
 
@@ -455,10 +455,11 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         }
         //在这里进行赋值（*p类型）
         // Are we assigning to an identifier or through a pointer?
-        switch (n->right->op)
+        switch (n->right->op) // *结合右值
         {
         case A_IDENT:
-            if (n->right->sym->class == C_GLOBAL || n->right->sym->class == C_STATIC)
+            if (n->right->sym->class == C_GLOBAL ||n->right->sym->class == C_EXTERN || 
+                n->right->sym->class == C_STATIC)
                 return (cgstorglob(leftreg, n->right->sym));
             else
                 return (cgstorlocal(leftreg, n->right->sym));
