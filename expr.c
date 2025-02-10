@@ -235,14 +235,41 @@ struct ASTnode* prefix()
     return tree;
 }
 #endif // 0
-struct ASTnode* prefix(void) {
+
+// 形参ptp是一个用于当前操作符优先级传递的一个参数
+/*
+*  比如说 当前的if（a==NULL||c==NULL）
+* 保证==先生成的是a==NULL 而不是 NULL||c 即为保证 生成的应当为
+* if（（a==NULL）||（c==NULL）） 而不是if（a==（NULL||c)==NULL）(一种错误)详情见 chr 57
+*
+*
+* if（a==NULL||b==NULL ||c==NULL）
+* 因此，让我们看看上面IF语句函数调用链：
+从if_statement（）调用binexpr（0）
+binexpr（0）解析==（优先级为40）并调用binexpr
+binexpr（40）调用前缀（）
+prefix（）调用postfix（）
+postfix（）调用primary（）
+primary（）在（void*）0的开头看到左括号，并调用paren_expression（）
+paren_expression（）查看void标记并调用parse_cast（）。一旦解析了强制转换，它就会调用binexpr（0）来解析0。
+这就是问题所在。NULL的值，即0应该仍然处于优先级40，但paren_expression（）只是将其重置回零。
+这意味着我们现在将解析NULL||b，从中生成AST树，而不是解析a==NULL并构建该AST树。
+解决方案是确保前面的令牌优先级通过调用链从binexpr（）一直传递到paren_expression（）。这意味着：
+prefix（）、postfix（）、primary（）和paren_expression（）
+所有这些现在都接受一个intptp参数，并将其传递。
+*
+*
+*/
+struct ASTnode* prefix(int ptp)
+{
     struct ASTnode* tree;
-    switch (Token.token) {
+    switch (Token.token)
+    {
     case T_AMPER:
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
         // Ensure that it's an identifier
         if (tree->op != A_IDENT)
@@ -261,14 +288,16 @@ struct ASTnode* prefix(void) {
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
-        // For now, ensure it's either another deref or an
-        // identifier
-        if (tree->op != A_IDENT && tree->op != A_DEREF)
-            fatal("* operator must be followed by an identifier or *");
+        // Ensure the tree's type is a pointer
+        /// 确保是指针类型 
+        if (!ptrtype(tree->type))
+            fatal("* operator must be followed by an expression of pointer type");
+
 
         // Prepend an A_DEREF operation to the tree
+        // 间接寻址
         tree =
             mkastunary(A_DEREF, value_at(tree->type), tree->ctype, tree, NULL, 0);
         break;
@@ -276,7 +305,7 @@ struct ASTnode* prefix(void) {
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
         // Prepend a A_NEGATE operation to the tree and
         // make the child an rvalue. Because chars are unsigned,
@@ -290,7 +319,7 @@ struct ASTnode* prefix(void) {
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
         // Prepend a A_INVERT operation to the tree and
         // make the child an rvalue.
@@ -301,7 +330,7 @@ struct ASTnode* prefix(void) {
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
         // Prepend a A_LOGNOT operation to the tree and
         // make the child an rvalue.
@@ -312,7 +341,7 @@ struct ASTnode* prefix(void) {
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
         // For now, ensure it's an identifier
         if (tree->op != A_IDENT)
@@ -325,7 +354,7 @@ struct ASTnode* prefix(void) {
         // Get the next token and parse it
         // recursively as a prefix expression
         scan(&Token);
-        tree = prefix();
+        tree = prefix(ptp);
 
         // For now, ensure it's an identifier
         if (tree->op != A_IDENT)
@@ -335,11 +364,10 @@ struct ASTnode* prefix(void) {
         tree = mkastunary(A_PREDEC, tree->type, tree->ctype, tree, NULL, 0);
         break;
     default:
-        tree = postfix();
+        tree = postfix(ptp);
     }
     return (tree);
 }
-
 
 
 
@@ -504,12 +532,12 @@ static struct ASTnode* postfix(void)
 // Parse a postfix expression and return
 // an AST node representing it. The
 // identifier is already in Text.
-static struct ASTnode* postfix(void)
+static struct ASTnode* postfix(int ptp)
 {
     struct ASTnode* n;
 
     // Get the primary expression
-    n = primary();
+    n = primary(ptp);
 
     // 循环寻找后缀表达式
     while (1)
@@ -566,7 +594,6 @@ static struct ASTnode* postfix(void)
 
     return (NULL);
 }
-
 
 //将 令牌转换为AST对应符号
 int arithop(int tokentype)
@@ -649,135 +676,96 @@ static int rightassoc(int tokentype)
 
 // 生成AST语法树 返回root为+ - * /的ast树  其中p为之前的优先级
 
-struct ASTnode* binexpr(int p)
-{
+struct ASTnode* binexpr(int ptp) {
     struct ASTnode* left, * right;
     struct ASTnode* ltemp, * rtemp;
     int ASTop;
     int tokentype;
-    // 获取整数，并给到左 
-    left = prefix();
 
+    // Get the tree on the left.
+    // Fetch the next token at the same time.
+    left = prefix(ptp);
 
-    /*
-               +
-             /   \
-            4     +
-                 /   \          4+4+4 T_EOF
-                 4     4
-                      /
-                    T_EOF
-    */
-
-    if (Token.token == T_EOF || Token.token == T_SEMI ||
-        Token.token == T_RPAREN || Token.token == T_RBRACKET ||
-        Token.token == T_COMMA || Token.token == T_COLON || Token.token == T_RBRACE)// 匹配 结束符
-
-    {
-        /*  AST树
-      *
-      *          A_IF
-      *     /          \
-      * (condition)
-      *
-      */
-        left->rvalue = 1;
-        return left;
-
-    }
-
+    // If we hit one of several terminating tokens, return just the left node
     tokentype = Token.token;
-
-
-    // 第一个条件为计算（高优先级）第二个条件为赋值
-    while (op_precedence(tokentype) > p || ((op_precedence(tokentype) == p) && rightassoc(tokentype)))
-    {
-        //设置当前Token类型
+    if (tokentype == T_SEMI || tokentype == T_RPAREN ||
+        tokentype == T_RBRACKET || tokentype == T_COMMA ||
+        tokentype == T_COLON || tokentype == T_RBRACE) {
+        left->rvalue = 1;
+        return (left);
+    }
+    // While the precedence of this token is more than that of the
+    // previous token precedence, or it's right associative and
+    // equal to the previous token's precedence
+    while ((op_precedence(tokentype) > ptp) ||
+        (rightassoc(tokentype) && op_precedence(tokentype) == ptp)) {
+        // Fetch in the next integer literal
         scan(&Token);
 
-        // 右递归调用生成右子树
+        // Recursively call binexpr() with the
+        // precedence of our token to build a sub-tree
         right = binexpr(OpPrec[tokentype]);
 
-
+        // Determine the operation to be performed on the sub-trees
         ASTop = arithop(tokentype);
-        if (ASTop == A_TERNARY)// 三元运算符
-        {
 
+        switch (ASTop) {
+        case A_TERNARY:
             // Ensure we have a ':' token, scan in the expression after it
             match(T_COLON, ":");
             ltemp = binexpr(0);
 
-            //  Use the middle expression's type as the return type. XXX We should also
+            // Build and return the AST for this statement. Use the middle
+            // expression's type as the return type. XXX We should also
             // consider the third expression's type.
-            return (mkastnode(A_TERNARY, right->type, right->ctype, left, right, ltemp, NULL, 0));
-            // left ? right : ltemp
-             /*
-                      A_TERNARY
-                   /      |     \
-                 left   right    ltemp
-            */
+            return (mkastnode
+            (A_TERNARY, right->type, right->ctype, left, right, ltemp,
+                NULL, 0));
 
-
-
-        }
-        else if (ASTop == A_ASSIGN)
-        {
-
+        case A_ASSIGN:
+            // Assignment
+            // Make the right tree into an rvalue
             right->rvalue = 1;
 
-            //匹配
+            // Ensure the right's type matches the left
             right = modify_type(right, left->type, left->ctype, 0);
             if (right == NULL)
                 fatal("Incompatible expression in assignment");
 
-
-            // 确保 表达式正常生成
+            // Make an assignment AST tree. However, switch
+            // left and right around, so that the right expression's 
+            // code will be generated before the left expression
             ltemp = left;
             left = right;
             right = ltemp;
+            break;
 
-
-        }
-        else
-        {
-
-
-            // 左右子树适配
-
-            /*
-              +
-            /   \           在进行判断时需要适配当前为右适配左
-        int 2   char 5
-
-              +
-            /   \           在进行判断时需要适配当前为左适配右
-        char 2   int 5
-
-        但是在实际情况中，较为复杂 故需要做到两次匹配
-      */
+        default:
+            // We are not doing a ternary or assignment, so both trees should
+            // be rvalues. Convert both trees into rvalue if they are lvalue trees
             left->rvalue = 1;
             right->rvalue = 1;
 
-
-            ltemp = modify_type(left, right->type, right->ctype, ASTop);  // 左适配右
-            rtemp = modify_type(right, left->type, left->ctype, ASTop);  // 右适配左
+            // Ensure the two types are compatible by trying
+            // to modify each tree to match the other's type.
+            ltemp = modify_type(left, right->type, right->ctype, ASTop);
+            rtemp = modify_type(right, left->type, left->ctype, ASTop);
             if (ltemp == NULL && rtemp == NULL)
                 fatal("Incompatible types in binary expression");
             if (ltemp != NULL)
                 left = ltemp;
             if (rtemp != NULL)
                 right = rtemp;
-
-
-
         }
-        // 生成ast节点 保证一致
-        left = mkastnode(arithop(tokentype), left->type, left->ctype, left, NULL, right, NULL, 0);
+
+        // Join that sub-tree with ours. Convert the token
+        // into an AST operation at the same time.
+        left =
+            mkastnode(arithop(tokentype), left->type, left->ctype, left, NULL,
+                right, NULL, 0);
 
         // Some operators produce an int result regardless of their operands
-        // 这些运算符产生整型数而跟操作数无关，即在此处理
-        switch (arithop(tokentype))
-        {
+        switch (arithop(tokentype)) {
         case A_LOGOR:
         case A_LOGAND:
         case A_EQ:
@@ -789,18 +777,21 @@ struct ASTnode* binexpr(int p)
             left->type = P_INT;
         }
 
-        tokentype = Token.token;  // 更新 token类型
-        if (Token.token == T_EOF || Token.token == T_SEMI || Token.token == T_RPAREN
-            || Token.token == T_RBRACKET || Token.token == T_COMMA || Token.token == T_COLON || Token.token == T_RBRACE)// 匹配 结束符
-        {
-            left->rvalue = 1; //树的左边为右值
-            return left;
+        // Update the details of the current token.
+        // If we hit a terminating token, return just the left node
+        tokentype = Token.token;
+        if (tokentype == T_SEMI || tokentype == T_RPAREN ||
+            tokentype == T_RBRACKET || tokentype == T_COMMA ||
+            tokentype == T_COLON || tokentype == T_RBRACE) {
+            left->rvalue = 1;
+            return (left);
         }
-
-
     }
+
+    // Return the tree we have when the precedence
+    // is the same or lower
     left->rvalue = 1;
-    return left; //返回创建
+    return (left);
 }
 
 
@@ -1066,7 +1057,7 @@ struct ASTnode* member_access(struct ASTnode* left, int withpointer)
 // Parse a parenthesised expression and
 // return an AST node representing it
 // 解析带括号的表达式
-static struct ASTnode* paren_expression(void)
+static struct ASTnode* paren_expression(int ptp)
 {
     struct ASTnode* n;
     int type = 0;
@@ -1085,6 +1076,7 @@ static struct ASTnode* paren_expression(void)
         {
             n = binexpr(0);// ()内没有typedef' 说明是一个表达式 即使不是也当作表达式
                                 // 还有一种情况就是当作是变量typedef 时候 就会binexpr
+                                 // ptp is zero as expression inside ( )
             break;
         }
     case T_VOID:
@@ -1102,7 +1094,7 @@ static struct ASTnode* paren_expression(void)
         rparen();
 
     default:
-        n = binexpr(0);		// 默认是一个计算表达式
+        n = binexpr(ptp);		// 默认是一个计算表达式
     }
 
     if (type == 0)// 如果不是强制转换，此处是匹配最上面的expr 即当前为一个表达式
@@ -1111,7 +1103,7 @@ static struct ASTnode* paren_expression(void)
                    */
     else
         // Otherwise, make a unary AST node for the cast
-        n = mkastunary(A_CAST, type, n, NULL, 0);
+        n = mkastunary(A_CAST, type, ctype, n, NULL, 0);
     return (n);
 }
 
@@ -1220,7 +1212,7 @@ struct ASTnode* primary()
 }
 #endif // 0
 
-struct ASTnode* primary(void)
+struct ASTnode* primary(int ptp)
 {
     struct ASTnode* n = NULL;
     struct symtable* enumptr;
@@ -1268,7 +1260,7 @@ struct ASTnode* primary(void)
 
         // For successive STRLIT tokens, append their contents
         // to this one
-        while (1) 
+        while (1)
         {
             scan(&Peektoken);
             if (Peektoken.token != T_STRLIT)
@@ -1278,7 +1270,7 @@ struct ASTnode* primary(void)
         }
 
         // Now make a leaf AST node for it. id is the string's label.
-        genglobstrend();
+        genglobstrend(); // char * "sas""sasas"
         n = mkastleaf(A_STRLIT, pointer_to(P_CHAR), NULL, NULL, id);
         break;
 
@@ -1315,7 +1307,7 @@ struct ASTnode* primary(void)
         break;
 
     case T_LPAREN:
-        return (paren_expression());
+        return (paren_expression(ptp));
 
     default:
         fatals("Expecting a primary expression, got token", Token.tokstr);
@@ -1325,5 +1317,9 @@ struct ASTnode* primary(void)
     scan(&Token);
     return (n);
 }
+
+
+
+
 
 

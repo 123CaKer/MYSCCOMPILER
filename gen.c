@@ -158,7 +158,7 @@ static int gen_funccall(struct ASTnode* n)
         // Keep the first (highest) number of arguments
         if (numargs == 0)
             numargs = gluetree->a_size;
-       // genfreeregs(NOREG);
+        // genfreeregs(NOREG);
         gluetree = gluetree->left;
     }
 
@@ -225,7 +225,7 @@ static int genSWITCH(struct ASTnode* n)
 }
 
 // 生成三元运算符表达式 类似为if
-static int gen_ternary(struct ASTnode* n) 
+static int gen_ternary(struct ASTnode* n)
 {
     int Lfalse, Lend;
     int reg, expreg;
@@ -270,12 +270,12 @@ static int gen_ternary(struct ASTnode* n)
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
 {
-    int  leftreg= 0;
+    int  leftreg = 0;
     //  int  midreg;
-    int  rightreg= NOREG;
+    int  rightreg = NOREG;
 
     // Empty tree, do nothing
-    if (n == NULL) 
+    if (n == NULL)
         return(NOREG);
 
 
@@ -292,6 +292,10 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         return (gen_ternary(n));//  三元运算符
     case A_FUNCCALL: // 函数调用
         return (gen_funccall(n)); // 将当前函数传入（A_FUNCALL）
+    case A_LOGOR:
+        return (gen_logandor(n));
+    case A_LOGAND:
+        return (gen_logandor(n));
     case A_GLUE:
         // Do each child statement, and free the
      // registers after each child
@@ -337,10 +341,12 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         return (cgor(leftreg, rightreg));
     case A_XOR:
         return (cgxor(leftreg, rightreg));
+#if 0
     case A_LOGOR:
         return (gen_logandor(n));
     case A_LOGAND:
         return (gen_logandor(n));
+#endif // 0
     case A_LSHIFT:
         return (cgshl(leftreg, rightreg));
     case A_RSHIFT:
@@ -357,13 +363,13 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
       // or we are being dereferenced
         if (n->rvalue || parentASTop == A_DEREF)
         {
-            if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC)
+            if (n->sym->class == C_GLOBAL || n->sym->class == C_STATIC || n->sym->class == C_EXTERN)
             {
-                return (cgloadglob(n->sym, n->op));// C_GLOBAL和C_STATIC
+                return (cgloadglob(n->sym, n->op));// C_GLOBAL和C_STATIC C_EXTERN
             }
             else
             {
-                return (cgloadlocal(n->sym, n->op));// C_PARAM和C_LOCAL
+                return (cgloadlocal(n->sym, n->op));// C_PARAM和C_LOCAL 
             }
         }
         else
@@ -386,14 +392,14 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // If the parent AST node is an A_IF or A_WHILE, generate
         // a compare followed by a jump. Otherwise, compare registers
         // and set one to 1 or 0 based on the comparison.
-        if (parentASTop == A_IF || parentASTop == A_WHILE|| parentASTop == A_TERNARY)
+        if (parentASTop == A_IF || parentASTop == A_WHILE || parentASTop == A_TERNARY)
             return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel));
         else
             return (cgcompare_and_set(n->op, leftreg, rightreg));
 
 
 
-    // 右结合性 
+        // 右结合性 
     case A_ASPLUS:
     case A_ASMINUS:
     case A_ASSTAR:
@@ -403,7 +409,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // For the '+=' and friends operators, generate suitable code
       // and get the register with the result. Then take the left child,
       // make it the right child so that we can fall into the assignment code.
-        switch (n->op) 
+        switch (n->op)
         {
         case A_ASPLUS:
             leftreg = cgadd(leftreg, rightreg);
@@ -427,7 +433,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         switch (n->right->op)
         {
         case A_IDENT:
-            if (n->right->sym->class == C_GLOBAL|| n->right->sym->class == C_STATIC)
+            if (n->right->sym->class == C_GLOBAL || n->right->sym->class == C_STATIC)
                 return (cgstorglob(leftreg, n->right->sym));
             else
                 return (cgstorlocal(leftreg, n->right->sym));
@@ -571,7 +577,7 @@ void genglobsym(struct symtable* node)
 // 生成字符串的汇编代码
 // If append is true, append to
 // previous genglobstr() call.
-int genglobstr(char* strvalue, int append) 
+int genglobstr(char* strvalue, int append)
 {
     int l = genlabel();
     cgglobstr(l, strvalue, append);

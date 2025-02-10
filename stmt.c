@@ -204,7 +204,7 @@ struct ASTnode* for_statement()
 
 static struct ASTnode* return_statement()
 {
-    struct ASTnode* tree=NULL;
+    struct ASTnode* tree = NULL;
     int returntype;
     int  functype;
 #if 0
@@ -230,7 +230,7 @@ static struct ASTnode* return_statement()
     // See if we have a return value
     // 如果我们有返回值
     // 如果匹配（
-    if (Token.token == T_LPAREN) 
+    if (Token.token == T_LPAREN)
     {
         // Can't return a value if function returns P_VOID
         if (Functionid->type == P_VOID)
@@ -256,7 +256,7 @@ static struct ASTnode* return_statement()
         if (Functionid->type != P_VOID)
             fatal("Must return a value from a non-void function");
     }
-    
+
 
     semi(); //在此处匹配；
     // 最终生成A_RETURN

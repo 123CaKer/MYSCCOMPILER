@@ -50,9 +50,9 @@ struct symtable* Typehead, * Typetail;    // List of typedefs
 
 
 
- int O_dumpAST;		// 为真, dump the AST trees
- int O_keepasm;		// 为真, 保持汇编文件
- int O_assemble;	// 为真, 编译汇编文件
- int O_dolink;		// 为真, 连接obj文件
- int O_verbose;		// If true, print info on compilation stages
- char* Outfilename;	// 被打开的输出文件名字
+int O_dumpAST;		// 为真, dump the AST trees
+int O_keepasm;		// 为真, 保持汇编文件
+int O_assemble;	// 为真, 编译汇编文件
+int O_dolink;		// 为真, 连接obj文件
+int O_verbose;		// If true, print info on compilation stages
+char* Outfilename;	// 被打开的输出文件名字

@@ -1,3 +1,4 @@
+
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
@@ -8,7 +9,7 @@
 // this function to convert externs into globals
 
 /*
-*    extern int a （sym->class == C_GLOBAL global）  
+*    extern int a （sym->class == C_GLOBAL global）
 *     class    type= P_INT
 *       int a ctype= P_INT
 */
@@ -49,7 +50,7 @@ int is_new_symbol(struct symtable* sym, int class, int type, struct symtable* ct
     // It must be a duplicate symbol if we get here
     // 一定是一个重复声明的
     fatals("Duplicate global variable declaration", sym->name);
-    return(-1);	
+    return(-1);
 }
 
 
@@ -503,13 +504,13 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
              那么当前maxelems += TABLE_INCREMENT; 依照递增TABLE_INCREMENT来进行增加realloc分配空间
 
         */
-            if (nelems == -1 && i == maxelems) 
+            if (nelems == -1 && i == maxelems)
             {
                 maxelems += TABLE_INCREMENT;
                 initlist = (int*)realloc(initlist, maxelems * sizeof(int));
             }
             // Leave when we hit the right curly bracket
-            if (Token.token == T_RBRACE) 
+            if (Token.token == T_RBRACE)
             {
                 scan(&Token);
                 break;
@@ -517,7 +518,7 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
 
             comma();
         }
-       
+
 
         // Zero any unused elements in the initlist.
         // Attach the list to the symbol table entry
@@ -539,7 +540,7 @@ struct symtable* array_declaration(char* varname, int type, struct symtable* cty
     *    extern int a[];
     *     int a[23];
      fun()......     允许
-    * 
+    *
     */
 
     // 仅有extern的数组成员可以为空
@@ -959,7 +960,7 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype, int class,
         /*  当前已更改 extern  故注释掉
         * if (findglob(varname) != NULL)
             fatals("Duplicate global variable declaration", varname);
-        */       
+        */
     case C_LOCAL:
     case C_PARAM:
         if (findlocl(varname) != NULL)
@@ -974,7 +975,7 @@ struct symtable* symbol_declaration(int type, struct symtable* ctype, int class,
     {
         sym = array_declaration(varname, type, ctype, class);
         *tree = NULL;	// Local arrays are not initialised
-    }   
+    }
     else
         sym = scalar_declaration(varname, type, ctype, class, tree);
     return (sym);

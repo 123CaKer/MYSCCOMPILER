@@ -48,7 +48,7 @@ int next(void)
 
     c = fgetc(Infile);			// Read from input file
 
-    while (Linestart && c == '#') 
+    while (Linestart && c == '#')
     {			// We've hit a pre-processor statement
         Linestart = 0;		// No longer at the start of the line
         scan(&Token);			// 获取行号
@@ -78,7 +78,7 @@ int next(void)
         Line++;				// Increment line count
         Linestart = 1;		// 回到新行的开始
     }
-       
+
     return (c);
 }
 

@@ -72,7 +72,7 @@ enum
 // AST 节点类型
 // AST node types. The first few line up
 // with the related tokens
-enum 
+enum
 {
 	A_ASSIGN = 1, A_ASPLUS, A_ASMINUS, A_ASSTAR, A_ASSLASH,
 	A_TERNARY, A_LOGOR, A_LOGAND, A_OR, A_XOR, A_AND,
@@ -90,12 +90,12 @@ enum
 // Primitive types. The bottom 4 bits is an integer
 // value that represents the level of indirection,
 // e.g. 0= no pointer, 1= pointer, 2= pointer pointer etc.
-enum 
+enum
 {
 	P_NONE//当前AST节点并不是表达式或者一种变量 例如 A_GLUE   P_NONE 用于释放类型限制详见chr 42
-	
+
 	, P_VOID = 16, P_CHAR = 32, P_INT = 48, P_LONG = 64, P_STRUCT = 80,
-	P_UNION=96
+	P_UNION = 96
 };
 
 
@@ -112,7 +112,7 @@ enum
 struct token
 {
 	int token;     //上述的token类型
-    char* tokstr;  // String version of the token
+	char* tokstr;  // String version of the token
 	int intvalue;  // 内部的值
 };
 
@@ -127,29 +127,29 @@ struct ASTnode
 	struct symtable* ctype;	// If struct/union, ptr to that type 为了多级指针使用 即 a->next->next
 	int rvalue;                   // 是否为右值 1 为右边
 	struct symtable* sym;		// For many AST nodes, the pointer to
-	#define a_intvalue a_size	// For A_INTLIT, a_intvalue 整形数字
-	/*
-	This way, I still have two named fields sharing the same location in each struct,
-	but the compiler will see only the one field name in each struct
-	. I've given each #define a different prefix to prevent pollution of the global namespace.
-	*/
-     int a_size;			// For A_SCALE, the size to scale by
+#define a_intvalue a_size	// For A_INTLIT, a_intvalue 整形数字
+/*
+This way, I still have two named fields sharing the same location in each struct,
+but the compiler will see only the one field name in each struct
+. I've given each #define a different prefix to prevent pollution of the global namespace.
+*/
+	int a_size;			// For A_SCALE, the size to scale by
 };
 
 // 符号表存储类型 
 enum
 {
-  C_GLOBAL = 1,			// Globally visible symbol
-  C_LOCAL,			// Locally visible symbol
-  C_PARAM,			// Locally visible function parameter
-  C_EXTERN,			// External globally visible symbol
-  C_STATIC,			// Static symbol, visible in one file
-  C_STRUCT,			// A struct
-  C_UNION,			// A union
-  C_MEMBER,			// Member of a struct or union
-  C_ENUMTYPE,			// A named enumeration type
-  C_ENUMVAL,			// A named enumeration value
-  C_TYPEDEF			// A named typedef
+	C_GLOBAL = 1,			// Globally visible symbol
+	C_LOCAL,			// Locally visible symbol
+	C_PARAM,			// Locally visible function parameter
+	C_EXTERN,			// External globally visible symbol
+	C_STATIC,			// Static symbol, visible in one file
+	C_STRUCT,			// A struct
+	C_UNION,			// A union
+	C_MEMBER,			// Member of a struct or union
+	C_ENUMTYPE,			// A named enumeration type
+	C_ENUMVAL,			// A named enumeration value
+	C_TYPEDEF			// A named typedef
 };
 
 // 符号表
@@ -162,19 +162,19 @@ struct symtable
 	int class;                    // 符号表存储类型 全局还是局部
 	int size;			// 符号表大小
 	int nelems;			// Functions: # params. Arrays: # elements 函数和形参的个数
-    #define st_endlabel st_posn	// For functions, the end label
+#define st_endlabel st_posn	// For functions, the end label
 
-	/*
-	This way, I still have two named fields sharing the same location in each struct,
-	but the compiler will see only the one field name in each struct
-	. I've given each #define a different prefix to prevent pollution of the global namespace.
-	*/
+/*
+This way, I still have two named fields sharing the same location in each struct,
+but the compiler will see only the one field name in each struct
+. I've given each #define a different prefix to prevent pollution of the global namespace.
+*/
 	int st_posn;			// For locals, the negative offset// from the stack base pointer （rbp）
-					  
+
 	int* initlist;		// 初始化列表 eg int a，v,c
 	struct symtable* next;	// Next symbol in one list
 	struct symtable* member;	// First member of a function, struct, union or enum 函数的形参 结构体成员 第一个
-				
+
 };
 
 

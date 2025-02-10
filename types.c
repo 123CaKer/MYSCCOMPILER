@@ -132,7 +132,7 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, struct symtable* rc
 
     // For A_LOGOR and A_LOGAND, both types have to be int or pointer types
     // 在或或者与表达式中 保证双方均可以为 变量 或 指针
-    if (op == A_LOGOR || op == A_LOGAND) 
+    if (op == A_LOGOR || op == A_LOGAND)
     {
         if (!inttype(ltype) && !ptrtype(ltype))
             return(NULL);
@@ -184,7 +184,12 @@ struct ASTnode* modify_type(struct ASTnode* tree, int rtype, struct symtable* rc
     }
 
     // We can scale only on A_ADD or A_SUBTRACT operation
-    if (op == A_ADD || op == A_SUBTRACT)
+    // 我们希望能够将当前的+= 和 -= 添加到指针操作中
+    /*
+    *  int *p=&a;
+    *   p+=1;
+    */
+    if (op == A_ADD || op == A_SUBTRACT || op == A_ASPLUS || op == A_ASMINUS)
     {
 
         // Left is int type, right is pointer type and the size
