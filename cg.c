@@ -1,9 +1,9 @@
-
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
 
-
+// Code generator for x86-64
+// Copyright (c) 2019 Warren Toomey, GPL3
 
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
@@ -119,7 +119,7 @@ static void popreg(int r) {
 // But if reg is positive, don't free that one.
 void freeall_registers(int keepreg) {
     int i;
-    fprintf(Outfile, "# freeing all registers\n");
+    // fprintf(Outfile, "# freeing all registers\n");
     for (i = 0; i < NUMFREEREGS; i++)
         if (i != keepreg)
             freereg[i] = 1;
@@ -140,7 +140,7 @@ int alloc_register(void) {
     for (reg = 0; reg < NUMFREEREGS; reg++) {
         if (freereg[reg]) {
             freereg[reg] = 0;
-            fprintf(Outfile, "# allocated register %s\n", reglist[reg]);
+            // fprintf(Outfile, "# allocated register %s\n", reglist[reg]);
             return (reg);
         }
     }
@@ -148,28 +148,27 @@ int alloc_register(void) {
     // We have no registers, so we must spill one
     reg = (spillreg % NUMFREEREGS);
     spillreg++;
-    fprintf(Outfile, "# spilling reg %s\n", reglist[reg]);
+    // fprintf(Outfile, "# spilling reg %s\n", reglist[reg]);
     pushreg(reg);
     return (reg);
 }
 
 // Return a register to the list of available registers.
 // Check to see if it's not already there.
-static void free_register(int reg) {
+void cgfreereg(int reg) {
     if (freereg[reg] != 0) {
-        fprintf(Outfile, "# error trying to free register %s\n", reglist[reg]);
+        // fprintf(Outfile, "# error trying to free register %s\n", reglist[reg]);
         fatald("Error trying to free register", reg);
     }
-
     // If this was a spilled register, get it back
     if (spillreg > 0) {
         spillreg--;
         reg = (spillreg % NUMFREEREGS);
-        fprintf(Outfile, "# unspilling reg %s\n", reglist[reg]);
+        // fprintf(Outfile, "# unspilling reg %s\n", reglist[reg]);
         popreg(reg);
     }
     else {
-        fprintf(Outfile, "# freeing reg %s\n", reglist[reg]);
+        // fprintf(Outfile, "# freeing reg %s\n", reglist[reg]);
         freereg[reg] = 1;
     }
 }
@@ -191,9 +190,14 @@ static void unspill_all_regs(void) {
 }
 
 // Print out the assembly preamble
-void cgpreamble() {
+void cgpreamble(char* filename) {
     freeall_registers(NOREG);
     cgtextseg();
+    fprintf(Outfile, "\t.file 1 ");
+    fputc('"', Outfile);
+    fprintf(Outfile, "%s", filename);
+    fputc('"', Outfile);
+    fputc('\n', Outfile);
     fprintf(Outfile,
         "# internal switch(expr) routine\n"
         "# %%rsi = switch table, %%rax = expr\n"
@@ -217,7 +221,7 @@ void cgpreamble() {
         "__no:\n"
         "        loop    __next\n"
         "        lodsq\n"
-        "        popq    %%rsi\n" "        jmp     *%%rax\n" "\n");
+        "        popq    %%rsi\n" "        jmp     *%%rax\n\n");
 }
 
 // Nothing to do
@@ -303,10 +307,10 @@ int cgloadvar(struct symtable* sym, int op)
     // increment or decrement. If not, it's one.
     /// 如果是指针的话获取当前指针所指向的偏移量
     /*
-    * 
+    *
     *    int * p 偏移为int
-    *  
-    *    
+    *
+    *
     */
     if (ptrtype(sym->type))
         offset = typesize(value_at(sym->type), sym->ctype);
@@ -341,7 +345,7 @@ int cgloadvar(struct symtable* sym, int op)
     /*
          int *sds=&a;
         sds++;
-    
+
     */
     if (sym->class == C_LOCAL || sym->class == C_PARAM)
     {
@@ -352,7 +356,7 @@ int cgloadvar(struct symtable* sym, int op)
         case 8: fprintf(Outfile, "\tmovq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
         }
     }
-    else 
+    else
     {
         switch (sym->size) // 地址增加量为 char int long 型  rip 为相对寻址寄存器，依（PC）的内容为基址
         {
@@ -375,20 +379,21 @@ int cgloadvar(struct symtable* sym, int op)
             fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[postreg]);
         // and change the value at that address
 
-        switch (sym->size) 
+        switch (sym->size)
         {
         case 1: fprintf(Outfile, "\taddb\t$%d,(%s)\n", offset, reglist[postreg]); break;
         case 4: fprintf(Outfile, "\taddl\t$%d,(%s)\n", offset, reglist[postreg]); break;
         case 8: fprintf(Outfile, "\taddq\t$%d,(%s)\n", offset, reglist[postreg]); break;
         }
         // and free the register
-        free_register(postreg);
+        cgfreereg(postreg);
     }
 
     // Return the register with the value
     // 返回加载值的寄存器r
     return(r);
 }
+
 
 // Given the label number of a global string,
 // load its address into a new register
@@ -403,7 +408,7 @@ int cgloadglobstr(int label) {
 // the number of the register with the result
 int cgadd(int r1, int r2) {
     fprintf(Outfile, "\taddq\t%s, %s\n", reglist[r2], reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
@@ -411,7 +416,7 @@ int cgadd(int r1, int r2) {
 // return the number of the register with the result
 int cgsub(int r1, int r2) {
     fprintf(Outfile, "\tsubq\t%s, %s\n", reglist[r2], reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
@@ -419,10 +424,9 @@ int cgsub(int r1, int r2) {
 // the number of the register with the result
 int cgmul(int r1, int r2) {
     fprintf(Outfile, "\timulq\t%s, %s\n", reglist[r2], reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
-
 
 // Divide or modulo the first register by the second and
 // return the number of the register with the result
@@ -442,39 +446,39 @@ int cgdivmod(int r1, int r2, int op) {
         fprintf(Outfile, "\tmovq\t%%rax,%s\n", reglist[r1]);
     else
         fprintf(Outfile, "\tmovq\t%%rdx,%s\n", reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
 int cgand(int r1, int r2) {
     fprintf(Outfile, "\tandq\t%s, %s\n", reglist[r2], reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
 int cgor(int r1, int r2) {
     fprintf(Outfile, "\torq\t%s, %s\n", reglist[r2], reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
 int cgxor(int r1, int r2) {
     fprintf(Outfile, "\txorq\t%s, %s\n", reglist[r2], reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
 int cgshl(int r1, int r2) {
     fprintf(Outfile, "\tmovb\t%s, %%cl\n", breglist[r2]);
     fprintf(Outfile, "\tshlq\t%%cl, %s\n", reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
 int cgshr(int r1, int r2) {
     fprintf(Outfile, "\tmovb\t%s, %%cl\n", breglist[r2]);
     fprintf(Outfile, "\tshrq\t%%cl, %s\n", reglist[r1]);
-    free_register(r2);
+    cgfreereg(r2);
     return (r1);
 }
 
@@ -565,7 +569,7 @@ void cgcopyarg(int r, int argposn) {
         fprintf(Outfile, "\tmovq\t%s, %s\n", reglist[r],
             reglist[FIRSTPARAMREG - argposn + 1]);
     }
-    free_register(r);
+    cgfreereg(r);
 }
 
 // Shift a register left by a constant
@@ -603,12 +607,10 @@ int cgstorlocal(int r, struct symtable* sym) {
     else
         switch (sym->type) {
         case P_CHAR:
-            fprintf(Outfile, "\tmovb\t%s, %d(%%rbp)\n", breglist[r],
-                sym->st_posn);
+            fprintf(Outfile, "\tmovb\t%s, %d(%%rbp)\n", breglist[r], sym->st_posn);
             break;
         case P_INT:
-            fprintf(Outfile, "\tmovl\t%s, %d(%%rbp)\n", dreglist[r],
-                sym->st_posn);
+            fprintf(Outfile, "\tmovl\t%s, %d(%%rbp)\n", dreglist[r], sym->st_posn);
             break;
         default:
             fatald("Bad type in cgstorlocal:", sym->type);
@@ -717,7 +719,7 @@ int cgcompare_and_set(int ASTop, int r1, int r2, int type) {
     }
     fprintf(Outfile, "\t%s\t%s\n", cmplist[ASTop - A_EQ], breglist[r2]);
     fprintf(Outfile, "\tmovzbq\t%s, %s\n", breglist[r2], reglist[r2]);
-    free_register(r1);
+    cgfreereg(r1);
     return (r2);
 }
 
@@ -736,8 +738,7 @@ void cgjump(int l) {
 static char* invcmplist[] = { "jne", "je", "jge", "jle", "jg", "jl" };
 
 // Compare two registers and jump if false.
-int cgcompare_and_jump(int ASTop, int r1, int r2, int label, int type)
-{
+int cgcompare_and_jump(int ASTop, int r1, int r2, int label, int type) {
     int size = cgprimsize(type);
 
     // Check the range of the AST operation
@@ -755,7 +756,8 @@ int cgcompare_and_jump(int ASTop, int r1, int r2, int label, int type)
         fprintf(Outfile, "\tcmpq\t%s, %s\n", reglist[r2], reglist[r1]);
     }
     fprintf(Outfile, "\t%s\tL%d\n", invcmplist[ASTop - A_EQ], label);
-    freeall_registers(NOREG);
+    cgfreereg(r1);
+    cgfreereg(r2);
     return (NOREG);
 }
 
@@ -800,11 +802,11 @@ void cgreturn(int reg, struct symtable* sym) {
 
 // Generate code to load the address of an
 // identifier into a variable. Return a new register
-int cgaddress(struct symtable* sym) 
-{
+int cgaddress(struct symtable* sym) {
     int r = alloc_register();
 
-    if (sym->class == C_GLOBAL || sym->class == C_EXTERN || sym->class == C_STATIC)
+    if (sym->class == C_GLOBAL ||
+        sym->class == C_EXTERN || sym->class == C_STATIC)
         fprintf(Outfile, "\tleaq\t%s(%%rip), %s\n", sym->name, reglist[r]);
     else
         fprintf(Outfile, "\tleaq\t%d(%%rbp), %s\n", sym->st_posn, reglist[r]);
@@ -889,4 +891,8 @@ void cgswitch(int reg, int casecount, int toplabel,
 // Move value between registers
 void cgmove(int r1, int r2) {
     fprintf(Outfile, "\tmovq\t%s, %s\n", reglist[r1], reglist[r2]);
+}
+
+void cglinenum(int line) {
+    fprintf(Outfile, "\t.loc 1 %d 0\n", line);
 }

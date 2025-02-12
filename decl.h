@@ -36,7 +36,7 @@ struct ASTnode* binexpr(int);
 
 // cg.c
 //void generatecode(struct ASTnode* n);
-void freeall_registers(void);
+void freeall_registers(int);
 void cgpreamble();
 void cgpostamble();
 int cgloadint(int value);

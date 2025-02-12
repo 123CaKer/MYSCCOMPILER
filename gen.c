@@ -230,8 +230,7 @@ static int genSWITCH(struct ASTnode* n)
 }
 
 // 生成三元运算符表达式 类似为if
-static int gen_ternary(struct ASTnode* n)
-{
+static int gen_ternary(struct ASTnode* n) {
     int Lfalse, Lend;
     int reg, expreg;
 
@@ -243,39 +242,48 @@ static int gen_ternary(struct ASTnode* n)
 
     // Generate the condition code followed
     // by a jump to the false label.
-    // 条件表达式
     genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);
-    genfreeregs(NOREG);
+    // genfreeregs(NOREG);
 
     // Get a register to hold the result of the two expressions
     reg = alloc_register();
 
     // Generate the true expression and the false label.
     // Move the expression result into the known register.
-    // 生成真表达式
     expreg = genAST(n->mid, NOLABEL, NOLABEL, NOLABEL, n->op);
     cgmove(expreg, reg);
-    // Don't free the register holding the result, though!
-    genfreeregs(reg);
+
+    /*
+          chr 60 寄存器释放问题
+
+          在之前的函数调用中，我们使用的是genfreeregs()函数，该函数的目的是释放所有的
+          reg ，如果传入的reg 无法进行释放则不释放 ，原因就在于此处，传入参数后 ，剩下的寄存器
+          可能由于线程优先级原因导致寄存器的赋值无法达到正确释放，倘若内部有值并且未能够传入mem中
+          则可能导致值丢失现象，故我们采用cgfreereg(expreg); 来释放对应的下标为expreg的reg
+
+
+          估计在之前的*p 等等地址原因，也可能与此有关 ,但解决方案在chr 57中的 expr 值传入链中引入“上一个优先级”
+          防止寄存器释放错误  eg 即为if (a==NULL || b==NULL || c==NULL) 中正确生成
+          if ((a==NULL) || (b==NULL) ||( c==NULL)) 
+    */
+    cgfreereg(expreg);  
     cgjump(Lend);
-    cglabel(Lfalse);//生成假标签
+    cglabel(Lfalse);
 
     // Generate the false expression and the end label.
     // Move the expression result into the known register.
-     // 生成假表达式
     expreg = genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
     cgmove(expreg, reg);
-    // Don't free the register holding the result, though!
-    genfreeregs(reg);
+    cgfreereg(expreg);
     cglabel(Lend);
-    return (reg);// 返回未释放reg下标
+    return (reg);
 }
 
 
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
 {
-    int  leftreg = 0;
+    int  leftreg = NOREG;
     //  int  midreg;
     int  rightreg = NOREG;
 
@@ -615,7 +623,9 @@ void genpostamble()
 }
 void genfreeregs(int keepreg)
 {
+
     freeall_registers(keepreg);
+
 }
 
 #if 0
