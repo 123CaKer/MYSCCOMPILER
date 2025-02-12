@@ -264,9 +264,9 @@ static int gen_ternary(struct ASTnode* n) {
 
           估计在之前的*p 等等地址原因，也可能与此有关 ,但解决方案在chr 57中的 expr 值传入链中引入“上一个优先级”
           防止寄存器释放错误  eg 即为if (a==NULL || b==NULL || c==NULL) 中正确生成
-          if ((a==NULL) || (b==NULL) ||( c==NULL)) 
+          if ((a==NULL) || (b==NULL) ||( c==NULL))
     */
-    cgfreereg(expreg);  
+    cgfreereg(expreg);
     cgjump(Lend);
     cglabel(Lfalse);
 
@@ -421,9 +421,9 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // a compare followed by a jump. Otherwise, compare registers
         // and set one to 1 or 0 based on the comparison.
         if (parentASTop == A_IF || parentASTop == A_WHILE || parentASTop == A_TERNARY)
-            return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel,n->left->type));
+            return (cgcompare_and_jump(n->op, leftreg, rightreg, iflabel, n->left->type));
         else
-            return (cgcompare_and_set(n->op, leftreg, rightreg,n->left->type));
+            return (cgcompare_and_set(n->op, leftreg, rightreg, n->left->type));
 
 
 
@@ -466,7 +466,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         switch (n->right->op) // *结合右值
         {
         case A_IDENT:
-            if (n->right->sym->class == C_GLOBAL ||n->right->sym->class == C_EXTERN || 
+            if (n->right->sym->class == C_GLOBAL || n->right->sym->class == C_EXTERN ||
                 n->right->sym->class == C_STATIC)
                 return (cgstorglob(leftreg, n->right->sym));
             else
@@ -498,7 +498,13 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         cgreturn(leftreg, Functionid);
         return (NOREG);
     case A_ADDR:
-        return (cgaddress(n->sym));
+        // If we have a symbol, get its address. Otherwise,
+    // the left register already has the address because
+    // it's a member access
+        if (n->sym != NULL)
+            return (cgaddress(n->sym));
+        else
+            return (leftreg);
     case A_DEREF:
 
         //  return (cgderef(leftreg, n->left->type));
@@ -550,7 +556,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
             return (cgloadlocal(n->sym, n->op));
 
 #endif // 0
-      
+
         // Load and decrement the variable's value into a register
    // and post increment/decrement it
         return (cgloadvar(n->sym, n->op));
@@ -565,7 +571,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // Load and decrement the variable's value into a register
      // and pre increment/decrement it
         return (cgloadvar(n->left->sym, n->op));
-      
+
     case A_PREDEC:
 #if 0
         // Load and decrement the variable's value into a register

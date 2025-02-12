@@ -2,9 +2,6 @@
 #include "data.h"
 #include "decl.h"
 
-// Code generator for x86-64
-// Copyright (c) 2019 Warren Toomey, GPL3
-
 // Flag to say which section were are outputting in to
 enum { no_seg, text_seg, data_seg } currSeg = no_seg;
 
@@ -46,6 +43,7 @@ int cgprimsize(int type) {
 // and return a suitably aligned memory offset
 // for this scalar type. This could be the original
 // offset, or it could be above/below the original
+// 当前成员偏移量
 int cgalign(int type, int offset, int direction) {
     int alignment;
 
@@ -58,9 +56,13 @@ int cgalign(int type, int offset, int direction) {
     case P_INT:
     case P_LONG:
         break;
-    default:
+    default: // 结构体偏移
+#if 0
         if (!ptrtype(type))
             fatald("Bad type in cg_align:", type);
+#endif // 0
+        break;
+
     }
 
     // Here we have an int or a long. Align it on a 4-byte offset
@@ -69,7 +71,6 @@ int cgalign(int type, int offset, int direction) {
     offset = (offset + direction * (alignment - 1)) & ~(alignment - 1);
     return (offset);
 }
-
 // Position of next local variable relative to stack base pointer.
 // We store the offset as positive to make aligning the stack pointer easier
 static int localOffset;
@@ -201,7 +202,6 @@ void cgpreamble(char* filename) {
     fprintf(Outfile,
         "# internal switch(expr) routine\n"
         "# %%rsi = switch table, %%rax = expr\n"
-        "# from SubC: http://www.t3x.org/subc/\n"
         "\n"
         "__switch:\n"
         "        pushq   %%rsi\n"

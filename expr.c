@@ -1020,7 +1020,7 @@ struct ASTnode* member_access(struct ASTnode* left, int withpointer)
     if (!withpointer)
     {
         if (left->type == P_STRUCT || left->type == P_UNION)
-            left->op = A_ADDR;// 进行地址访问 。或者 -》
+            left->op = A_ADDR;// 进行地址访问 a.sas
         else
             fatal("Expression is not a struct/union");
     }
