@@ -163,7 +163,7 @@ struct symtable
 	int size;			// 符号表大小
 	int nelems;			// Functions: # params. Arrays: # elements 函数和形参的个数
 #define st_endlabel st_posn	// For functions, the end label
-
+#define st_hasaddr  st_posn	// For locals, 1 if any A_ADDR operation
 /*
 This way, I still have two named fields sharing the same location in each struct,
 but the compiler will see only the one field name in each struct

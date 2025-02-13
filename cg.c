@@ -289,6 +289,12 @@ int cgloadint(int value, int type) {
     return (r);
 }
 
+// Allocate a QBE temporary
+static int nexttemp = 0;
+int cgalloctemp(void) {
+    return (++nexttemp);
+}
+
 // Load a value from a variable into a register.
 // Return the number of the register. If the
 // operation is pre- or post-increment/decrement,

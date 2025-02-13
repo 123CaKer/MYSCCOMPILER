@@ -229,7 +229,13 @@ static int genSWITCH(struct ASTnode* n)
     return (NOREG);
 }
 
+// Allocate a QBE temporary
+static int nexttemp = 0;
+static int cgalloctemp(void) {
+    return (++nexttemp);
+}
 // 生成三元运算符表达式 类似为if
+
 static int gen_ternary(struct ASTnode* n) {
     int Lfalse, Lend;
     int reg, expreg;
@@ -279,6 +285,46 @@ static int gen_ternary(struct ASTnode* n) {
     return (reg);
 }
 
+
+// chr 63的 
+#if 0
+static int gen_ternary(struct ASTnode* n) {
+    int Lfalse, Lend;
+    int reg, expreg;
+    int r, r2;
+
+    // Generate two labels: one for the
+    // false expression, and one for the
+    // end of the overall expression
+    Lfalse = genlabel();
+    Lend = genlabel();
+
+    // Generate the condition code
+    r = genAST(n->left, Lfalse, NOLABEL, NOLABEL, n->op);
+    // Test to see if the condition is true. If not, jump to the false label
+    r2 = cgloadint(1, P_INT);
+    cgcompare_and_jump(A_EQ, r, r2, Lfalse, P_INT);
+
+    // Get a temporary to hold the result of the two expressions
+    reg = cgalloctemp();
+
+    // Generate the true expression and the false label.
+    // Move the expression result into the known temporary.
+    expreg = genAST(n->mid, NOLABEL, NOLABEL, NOLABEL, n->op);
+    cgmove(expreg, reg);
+    cgfreereg(expreg);
+    cgjump(Lend);
+    cglabel(Lfalse);
+
+    // Generate the false expression and the end label.
+    // Move the expression result into the known temporary.
+    expreg = genAST(n->right, NOLABEL, NOLABEL, NOLABEL, n->op);
+    cgmove(expreg, reg);
+    cgfreereg(expreg);
+    cglabel(Lend);
+    return (reg);
+}
+#endif
 
 // interpretAST的汇编接口版本  后序
 int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, int parentASTop) // reg为最近使用寄存器对应下标
@@ -501,6 +547,7 @@ int genAST(struct ASTnode* n, int iflabel, int looptoplabel, int loopendlabel, i
         // If we have a symbol, get its address. Otherwise,
     // the left register already has the address because
     // it's a member access
+        //这样就形成 a.b.c....... 访问链
         if (n->sym != NULL)
             return (cgaddress(n->sym));
         else

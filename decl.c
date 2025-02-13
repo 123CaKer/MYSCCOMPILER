@@ -3,7 +3,6 @@
 #include "data.h"
 #include "decl.h"
 
-
 // Given a pointer to a symbol that may already exist
 // return true if this symbol doesn't exist. We use
 // this function to convert externs into globals
@@ -264,7 +263,7 @@ struct symtable* scalar_declaration(char* varname, int type, struct symtable* ct
     case C_GLOBAL:
         // See if this variable is new or already exists
         sym = findglob(varname);
-        if (is_new_symbol(sym, class, type, ctype))
+        if (is_new_symbol(sym, class, type, ctype))// ÐÂµÄsym
             sym = addglob(varname, type, ctype, S_VARIABLE, class, 1, 0);
         break;
     case C_LOCAL:
@@ -350,7 +349,7 @@ struct symtable* scalar_declaration(char* varname, int type, struct symtable* ct
             exprnode->rvalue = 1;
 
             // Ensure the expression's type matches the variable
-            exprnode = modify_type(exprnode, varnode->type, 0);
+            exprnode = modify_type(exprnode, varnode->type, varnode->ctype, 0);
             if (exprnode == NULL)
                 fatal("Incompatible expression in assignment");
 
